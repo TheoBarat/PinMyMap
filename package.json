@@ -1,0 +1,12 @@
+{
+  "name": "pingmymap",
+  "version": "1.0.0",
+  "description": "JS Project for Engineering Module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
