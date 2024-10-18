@@ -3,9 +3,9 @@
     <nav>
       <img alt="Logo" src="./assets/PinMyMapLogo.png" style="height: 80px; width: 80px;"/>
       <ul class=navbar>
-        <li><a href="#" style="color: white; text-decoration: none;">Home</a></li>
-        <li><a href="#" style="color: white; text-decoration: none;">About</a></li>
-        <li><a href="#" style="color: white; text-decoration: none;">Contact</a></li>
+        <li id="dotNavbar"><a href="#" style="color: white; text-decoration: none;">Home</a></li>
+        <li id="dotNavbar"><a href="#" style="color: white; text-decoration: none;">About</a></li>
+        <li id="dotNavbar"><a href="#" style="color: white; text-decoration: none;">Contact</a></li>
       </ul>
     </nav>
     <div id="map" style="height: 90vh; width: 100vw; position: absolute; top: 10vh; right: 0;"></div>
@@ -15,7 +15,6 @@
 <script>
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import UserList from './components/UserList.vue';  // Importer le composant
 
 export default {
 
@@ -54,6 +53,10 @@ export default {
     list-style-type: none; 
     margin: 0;
     padding: 10;
+  }
+  .dotNavbar {
+    /* Styles pour les éléments de la liste de navigation */
+    margin: 0 20px;
   }
 /* Styles globaux pour ton application */
 </style>
