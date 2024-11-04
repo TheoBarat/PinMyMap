@@ -6,6 +6,9 @@
         <li id="dotNavbar"><a href="#" style="color: white; text-decoration: none;">Home</a></li>
         <li id="dotNavbar"><a href="#" style="color: white; text-decoration: none;">About</a></li>
         <li id="dotNavbar"><a href="#" style="color: white; text-decoration: none;">Contact</a></li>
+        <li v-for="user in users" :key="user.id">
+          {{ user.email }}
+        </li>
       </ul>
     </nav>
     <div id="map" style="height: 90vh; width: 100vw; position: absolute; top: 10vh; right: 0;">
@@ -24,6 +27,7 @@
 <script>
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import axios from 'axios';
 
 export default {
 
@@ -35,13 +39,19 @@ export default {
       unvisitedLayer: L.layerGroup(), // Overlay pour les pays non visités
       countries: [],
       userID: 1,
+      users: [],
     };
   },
 
-  mounted() {
+  async mounted() {
     // Initialiser la carte Leaflet
     this.initializeMap();
-
+    try {
+      const response = await axios.get('http://localhost:3001/users'); // Appel à l'API pour récupérer les utilisateurs
+      this.users = response.data; // Stocke les utilisateurs dans le data
+    } catch (error) {
+      console.error('Erreur lors de la récupération des utilisateurs', error);
+    }
     addCountryToMap("France");
   },
   methods: {

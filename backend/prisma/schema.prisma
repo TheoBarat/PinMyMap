@@ -8,7 +8,35 @@ generator client {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  visits    Visit[]  // Relation avec les visites de pays
+}
+
+model Country {
+  id        Int       @id @default(autoincrement())
+  name      String    // Nom du pays
+  code      String    @unique // Code ISO du pays (e.g., FR pour la France)
+  visits    Visit[]   // Relation avec les visites pour chaque utilisateur
+}
+
+model Visit {
+  id          Int       @id @default(autoincrement())
+  status      String    // Statut de la visite: "visited" ou "wishlist" (à visiter)
+  description String?   // Description facultative du voyage
+  userId      Int       // Référence vers l'utilisateur
+  countryId   Int       // Référence vers le pays
+  user        User      @relation(fields: [userId], references: [id])
+  country     Country   @relation(fields: [countryId], references: [id])
+  photos      Photo[]   // Relation avec les photos de la visite
+}
+
+model Photo {
+  id          Int       @id @default(autoincrement())
+  url         String    // URL de la photo
+  visitId     Int       // Référence vers la visite
+  visit       Visit     @relation(fields: [visitId], references: [id])
+  createdAt   DateTime  @default(now())
 }
