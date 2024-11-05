@@ -1,5 +1,5 @@
 <template>
-    <div id="map" style="height: 90vh; width: 100vw; position: absolute; top: 10vh; right: 0;">
+    <div id="map">
       <l-geo-json
         v-for="(country, index) in countries"
         :key="index"
@@ -89,5 +89,7 @@
   </script>
   
   <style scoped>
-  /* Styles spécifiques à la carte, si nécessaire */
+    #map {
+      height: 90vh;
+    }
   </style>  
