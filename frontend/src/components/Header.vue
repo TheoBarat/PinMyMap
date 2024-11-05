@@ -72,7 +72,7 @@ export default {
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
   padding: 30px;
   position: relative;
-  z-index: 1000;
+  z-index: 10000;
 }
 
 .logo {
