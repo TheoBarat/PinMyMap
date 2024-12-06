@@ -6,10 +6,11 @@ const bcrypt = require('bcryptjs');
 const app = express();
 const prisma = new PrismaClient();
 
-app.use(cors({ origin: 'http://localhost:8080' }));
-// Utiliser CORS pour autoriser les requêtes depuis le front-end
-app.use(cors());
-
+app.use(cors({
+  origin: 'http://localhost:5173', // URL du frontend
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 // Middleware pour analyser le corps des requêtes JSON
 app.use(express.json());
 

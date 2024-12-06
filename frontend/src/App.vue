@@ -7,16 +7,14 @@
 
 <script>
 import Header from "./components/Header.vue";
+import eventBus from "./eventBus";
 
 export default {
-  name: "App",
-  components: {
-    Header,
+  components: { Header },
+  mounted() {
+    const token = localStorage.getItem("token");
+    console.log("App.vue : token détecté =", token);
+    eventBus.$emit("auth-changed", !!token);
   },
 };
 </script>
-
-<style>
-/* Styles globaux pour ton application */
-
-</style>

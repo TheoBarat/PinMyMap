@@ -1,104 +1,84 @@
 <template>
-    <div class="auth-container">
-      <div v-if="currentUser" class="user-info">
-        <h1>Connecté en tant que <span>{{ currentUser }}</span></h1>
-        <button @click="logout" class="logout-btn">Se déconnecter</button>
-      </div>
-      <div v-else class="auth-card">
-        <h1>{{ isLoginMode ? "Login" : "Sign Up" }}</h1>
-        <form @submit.prevent="isLoginMode ? handleLogin() : handleSignup()">
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" v-model="email" required />
-          </div>
-          <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" v-model="password" required />
-          </div>
-          <button type="submit" class="primary-btn">
-            {{ isLoginMode ? "Login" : "Sign Up" }}
-          </button>
-        </form>
-        <button @click="toggleMode" class="secondary-btn">
-          {{ isLoginMode ? "Create an account" : "Already have an account?" }}
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>{{ isLoginMode ? "Login" : "Sign Up" }}</h1>
+      <form @submit.prevent="isLoginMode ? handleLogin() : handleSignup()">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" v-model="email" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" v-model="password" required />
+        </div>
+        <button type="submit" class="primary-btn">
+          {{ isLoginMode ? "Login" : "Sign Up" }}
         </button>
-      </div>
+      </form>
+      <button @click="toggleMode" class="secondary-btn">
+        {{ isLoginMode ? "Create an account" : "Already have an account?" }}
+      </button>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    data() {
-      return {
-        email: "",
-        password: "",
-        isLoginMode: true, // Mode par défaut : Login
-        currentUser: null, // Utilisateur connecté
-      };
-    },
-    mounted() {
-      this.checkAuth(); // Vérifie l'authentification au chargement
-    },
-    methods: {
-      async handleLogin() {
-        try {
-          const response = await fetch("http://localhost:3001/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: this.email, password: this.password }),
-          });
-          const result = await response.json();
-          if (response.ok) {
-            alert("Login successful");
-            localStorage.setItem("token", result.token); // Stocke le token
-            this.checkAuth(); // Vérifie l'état d'authentification
-          } else {
-            alert(result.message || "Login failed");
-          }
-        } catch (error) {
-          console.error("Error during login:", error);
-          alert("An error occurred during login.");
-        }
-      },
-      async handleSignup() {
-        try {
-          console.log("Données envoyées pour inscription :", this.email, this.password);
-          const response = await fetch("http://localhost:3001/users", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: this.email, password: this.password }),
-          });
-          const result = await response.json();
-          if (response.ok) {
-            alert("Signup successful, you can now login!");
-            this.isLoginMode = true; // Bascule vers le mode login après inscription
-          } else {
-            alert(result.message || "Signup failed");
-          }
-        } catch (error) {
-          console.error("Error during signup:", error);
-          alert("An error occurred during signup.");
-        }
-      },
-      toggleMode() {
-        this.isLoginMode = !this.isLoginMode;
-      },
-      checkAuth() {
-        const token = localStorage.getItem("token");
-        if (token) {
-          const payload = JSON.parse(atob(token.split(".")[1])); // Décoder le payload JWT
-          this.currentUser = payload.email; // Met à jour l'utilisateur connecté
+  </div>
+</template>
+
+<script>
+import eventBus from "../eventBus";
+
+export default {
+  data() {
+    return {
+      email: "",
+      password: "",
+      isLoginMode: true, // Mode par défaut : Login
+    };
+  },
+  methods: {
+    async handleLogin() {
+      try {
+        const response = await fetch("http://localhost:3001/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: this.email, password: this.password }),
+        });
+        const result = await response.json();
+        if (response.ok) {
+          localStorage.setItem("token", result.token);
+          console.log("Login réussi, token sauvegardé :", result.token);
+          eventBus.$emit("auth-changed", true); // Émet l’événement via l’event bus
+          this.$router.push("/home");
         } else {
-          this.currentUser = null; // Pas de token, pas d'utilisateur connecté
+          alert(result.message || "Login failed");
         }
-      },
-      logout() {
-        localStorage.removeItem("token"); // Supprime le token
-        this.currentUser = null; // Réinitialise l'état utilisateur
-      },
+      } catch (error) {
+        console.error("Erreur lors du login :", error);
+      }
     },
-  };
-  </script>
+    async handleSignup() {
+      try {
+        const response = await fetch("http://localhost:3001/users", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: this.email, password: this.password }),
+        });
+        const result = await response.json();
+        if (response.ok) {
+          alert("Signup successful, you can now login!");
+          this.isLoginMode = true;
+        } else {
+          alert(result.message || "Signup failed");
+        }
+      } catch (error) {
+        console.error("Error during signup:", error);
+        alert("An error occurred during signup.");
+      }
+    },
+    toggleMode() {
+      this.isLoginMode = !this.isLoginMode;
+    },
+  },
+};
+</script>
   
   <style scoped>
   .auth-container {

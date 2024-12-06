@@ -35,10 +35,10 @@ export default {
       visitedLayer: L.layerGroup(),
       toVisitLayer: L.layerGroup(),
       geoJsonLayer: null,
-      isEditMode: false, // Mode vue ou édition
-      countries: [], // Liste des pays et leurs informations
-      userId: 1, // ID de l'utilisateur
-      showEditor: false, // Contrôle l'affichage de l'éditeur
+      isEditMode: false,
+      countries: [],
+      userId: 1,
+      showEditor: false,
       selectedCountryName: "",
       selectedCountryDescription: "",
       selectedCountryPhotos: [],
@@ -47,9 +47,14 @@ export default {
     };
   },
   async mounted() {
-    await this.initializeMap();
-    await this.loadGeoJson();
-    await this.fetchCountryStates(this.userId);
+    const token = localStorage.getItem("token");
+    if (token) {
+      await this.initializeMap();
+      await this.loadGeoJson();
+      await this.fetchCountryStates(this.userId);
+    } else {
+      this.$router.push("/login"); // Redirige si non connecté
+    }
   },
   methods: {
     async initializeMap() {
@@ -72,16 +77,9 @@ export default {
         }
       ).addTo(this.map);
 
-      // Ajouter les overlays
-      const overlays = {
-        "Pays visités": this.visitedLayer,
-        "Pays à visiter": this.toVisitLayer,
-      };
-      L.control.layers(null, overlays).addTo(this.map);
-
-      // Ajouter les overlays à la carte
       this.visitedLayer.addTo(this.map);
       this.toVisitLayer.addTo(this.map);
+      console.log("Initialisation de la carte Leaflet.");
     },
     async loadGeoJson() {
       const geojsonUrl = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";

@@ -5,15 +5,13 @@
 
     <!-- Menu profil -->
     <div v-if="isLoggedIn" class="profile-menu">
-      <!-- Avatar et nom de l'utilisateur cliquables pour afficher le menu -->
       <img
         alt="Avatar"
         src="../assets/avatar-placeholder.png"
         class="avatar"
         @click="toggleDropdown"
       />
-
-      <span class="user-name" @click="toggleDropdown"> {{ user.firstName || "Utilisateur" }} {{ user.lastName || "" }} </span>
+      <span class="user-email" @click="toggleDropdown">{{ user.email || "Utilisateur" }}</span>
 
       <!-- Menu déroulant pour se déconnecter -->
       <div v-if="showDropdown" class="dropdown-menu">
@@ -24,55 +22,60 @@
 </template>
 
 <script>
+import eventBus from "../eventBus";
+
 export default {
   name: "Header",
   data() {
     return {
       isLoggedIn: false,
       showDropdown: false,
-      user: {
-        firstName: "",
-        lastName: "",
-      },
+      user: { email: "" },
     };
   },
   mounted() {
-    this.checkAuth(); // Vérifie l'authentification au chargement
+  this.checkAuth();
+    eventBus.$on("auth-changed", (status) => {
+      console.log("Événement auth-changed capté : ", status);
+      this.isLoggedIn = status;
+      if (status) this.loadUser();
+    });
   },
   methods: {
-    goToHome() {
-      this.$router.push('/');
-    },
     checkAuth() {
+      const token = localStorage.getItem("token");
+      this.isLoggedIn = !!token;
+      if (this.isLoggedIn) this.loadUser();
+    },
+    loadUser() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const payload = JSON.parse(atob(token.split(".")[1])); // Décoder le payload JWT
-          this.isLoggedIn = true;
-          this.user.firstName = payload.firstName || "Utilisateur";
-          this.user.lastName = payload.lastName || "";
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          this.user.email = payload.email || "Utilisateur";
         } catch (error) {
           console.error("Erreur lors du décodage du token :", error);
-          this.logout(); // Déconnecte si le token est invalide
+          this.logout();
         }
-      } else {
-        this.isLoggedIn = false;
       }
     },
     logout() {
-      localStorage.removeItem("token"); // Supprime le token
+      localStorage.removeItem("token");
       this.isLoggedIn = false;
-      this.user = { firstName: "", lastName: "" };
-      this.showDropdown = false;
-      this.$router.push("/login"); // Redirige vers la page de connexion
-      location.reload(); // Rafraîchit la page
+      this.user = { email: "" };
+      this.$router.push("/login");
+      this.$root.$emit("auth-changed", false);
     },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
     },
+    goToHome() {
+      this.$router.push("/home");
+    },
   },
 };
 </script>
+
 
 <style scoped>
 .header {
@@ -108,7 +111,7 @@ export default {
   margin-right: 10px;
 }
 
-.user-name {
+.user-email {
   font-weight: bold;
   color: #333;
 }
@@ -141,3 +144,4 @@ export default {
   background-color: #f2f2f2;
 }
 </style>
+
