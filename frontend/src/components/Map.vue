@@ -1,11 +1,9 @@
 <template>
   <div>
-    <div class="controls">
-      <button @click="toggleEditMode">
-        {{ isEditMode ? "Passer en mode Vue" : "Passer en mode Édition" }}
-      </button>
-    </div>
     <div id="map"></div>
+    <div class="controls">
+      <ToggleButton :isEditMode="isEditMode" @toggle="toggleEditMode" />
+    </div>
     <CountryEditor
       v-if="showEditor"
       :isVisible="showEditor"
@@ -23,11 +21,13 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import CountryEditor from "./CountryEditor.vue";
+import ToggleButton from "./ToggleButton.vue";
 import axios from "axios";
 
 export default {
   components: {
     CountryEditor,
+    ToggleButton,
   },
   data() {
     return {
@@ -122,7 +122,6 @@ export default {
     },
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
-      console.log(this.isEditMode ? "Mode édition activé" : "Mode vue activé");
     },
     openEditor(properties) {
       const country = this.countries.find((c) => c.code === properties.ISO_A3);
