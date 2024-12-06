@@ -17,8 +17,10 @@ model User {
 
 model Country {
   id        Int       @id @default(autoincrement())
-  name      String    // Nom du pays
-  code      String    @unique // Code ISO du pays (e.g., FR pour la France)
+  name      String    // Nom du pays (e.g., "France")
+  code      String    @unique // Code ISO à trois lettres (e.g., "FRA")
+  continent String?   // Optionnel : Continent du pays
+  population Int?     // Optionnel : Population estimée
   visits    Visit[]   // Relation avec les visites pour chaque utilisateur
 }
 
@@ -31,6 +33,7 @@ model Visit {
   user        User      @relation(fields: [userId], references: [id])
   country     Country   @relation(fields: [countryId], references: [id])
   photos      Photo[]   // Relation avec les photos de la visite
+  color       String?   // Couleur associée au statut
 }
 
 model Photo {
@@ -39,4 +42,10 @@ model Photo {
   visitId     Int       // Référence vers la visite
   visit       Visit     @relation(fields: [visitId], references: [id])
   createdAt   DateTime  @default(now())
+}
+
+model StatusColor {
+  id     Int    @id @default(autoincrement())
+  status String @unique // Statut ("visited", "wishlist", etc.)
+  color  String         // Couleur associée (en hexadécimal, e.g., #FF0000)
 }
