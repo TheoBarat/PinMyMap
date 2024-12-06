@@ -3,19 +3,17 @@
     <!-- Logo cliquable -->
     <img alt="Logo" src="../assets/PinMyMapLogo.png" class="logo" @click="goToHome" />
 
-    <!-- Bouton de connexion ou menu profil -->
-    <div v-if="!isLoggedIn" class="auth-button">
-      <CustomButton
-        buttonText="Se connecter"
-        :buttonColor="'rgb(254, 65, 77)'"
-        buttonSize="16px"
-        @click="login"
-      />
-    </div>
-    <div v-else class="profile-menu">
+    <!-- Menu profil -->
+    <div v-if="isLoggedIn" class="profile-menu">
       <!-- Avatar et nom de l'utilisateur cliquables pour afficher le menu -->
-      <img alt="Avatar" src="../assets/avatar-placeholder.png" class="avatar" @click="toggleDropdown" />
-      <span class="user-name" @click="toggleDropdown">{{ user.firstName }} {{ user.lastName }}</span>
+      <img
+        alt="Avatar"
+        src="../assets/avatar-placeholder.png"
+        class="avatar"
+        @click="toggleDropdown"
+      />
+
+      <span class="user-name" @click="toggleDropdown"> {{ user.firstName || "Utilisateur" }} {{ user.lastName || "" }} </span>
 
       <!-- Menu déroulant pour se déconnecter -->
       <div v-if="showDropdown" class="dropdown-menu">
@@ -26,33 +24,47 @@
 </template>
 
 <script>
-import CustomButton from "../components/Button.vue";
-
 export default {
   name: "Header",
-  components: {
-    CustomButton,
-  },
   data() {
     return {
       isLoggedIn: false,
       showDropdown: false,
       user: {
-        firstName: "Jean",
-        lastName: "Dupont",
+        firstName: "",
+        lastName: "",
       },
     };
+  },
+  mounted() {
+    this.checkAuth(); // Vérifie l'authentification au chargement
   },
   methods: {
     goToHome() {
       this.$router.push('/');
     },
-    login() {
-      this.isLoggedIn = true;
+    checkAuth() {
+      const token = localStorage.getItem("token");
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1])); // Décoder le payload JWT
+          this.isLoggedIn = true;
+          this.user.firstName = payload.firstName || "Utilisateur";
+          this.user.lastName = payload.lastName || "";
+        } catch (error) {
+          console.error("Erreur lors du décodage du token :", error);
+          this.logout(); // Déconnecte si le token est invalide
+        }
+      } else {
+        this.isLoggedIn = false;
+      }
     },
     logout() {
+      localStorage.removeItem("token"); // Supprime le token
       this.isLoggedIn = false;
+      this.user = { firstName: "", lastName: "" };
       this.showDropdown = false;
+      this.$router.push("/login"); // Redirige vers la page de connexion
     },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
@@ -78,10 +90,6 @@ export default {
 .logo {
   height: 90px;
   width: 90px;
-  cursor: pointer;
-}
-
-.auth-button {
   cursor: pointer;
 }
 
