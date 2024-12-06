@@ -18,4 +18,5 @@ export default {
 
 <style>
 /* Styles globaux pour ton application */
+
 </style>

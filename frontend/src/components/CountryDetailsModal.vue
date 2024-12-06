@@ -1,36 +1,52 @@
 <template>
-    <div v-if="country" class="modal" @click.self="closeModal">
-      <div class="modal-content">
-        <h2>{{ country.name }}</h2>
-        <p>État de visite : {{ country.status }}</p>
-        <div v-if="country.photos.length">
-          <h3>Photos</h3>
-          <div class="photo-gallery">
-            <img
-              v-for="(photo, index) in country.photos"
-              :key="index"
-              :src="photo"
-              :alt="`Photo ${index + 1} de ${country.name}`"
-            />
-          </div>
-        </div>
-        <button @click="markAsVisited(country)">Marquer comme visité</button>
-        <button @click="markAsToVisit(country)">Ajouter aux souhaits</button>
-      </div>
+  <div class="modal">
+    <div class="modal-content">
+      <h2>{{ country.name }}</h2>
+      <button @click="markAsVisited">Marquer comme Visité</button>
+      <button @click="markAsToVisit">Marquer comme À Visiter</button>
+      <button @click="unmark">Décocher</button>
+      <button @click="$emit('close')">Fermer</button>
     </div>
-  </template>
-  
-  <script>
-  export default {
-    props: {
-      country: Object,
-      closeModal: Function,
-      markAsVisited: Function,
-      markAsToVisit: Function,
+  </div>
+</template>
+
+<script>
+export default {
+  name: "CountryDetailsModal",
+  props: {
+    country: Object,
+  },
+  emits: ["close", "update-country-status"],
+  methods: {
+    markAsVisited() {
+      this.$emit("update-country-status", { country: this.country, status: "visited" });
     },
-  };
-  </script>
-  
-  <style scoped>
-  /* Styles similaires à ceux que tu as déjà pour la modale */
-  </style>
+    markAsToVisit() {
+      this.$emit("update-country-status", { country: this.country, status: "toVisit" });
+    },
+    unmark() {
+      this.$emit("update-country-status", { country: this.country, status: "unvisited" });
+    },
+  },
+};
+</script>
+
+<style>
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+</style>
