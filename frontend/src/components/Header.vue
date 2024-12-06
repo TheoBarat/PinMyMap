@@ -65,6 +65,7 @@ export default {
       this.user = { firstName: "", lastName: "" };
       this.showDropdown = false;
       this.$router.push("/login"); // Redirige vers la page de connexion
+      location.reload(); // Rafraîchit la page
     },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
