@@ -1,19 +1,20 @@
 <template>
-  <div id="map">
-    <!-- <CountrySearch :countries="countries" @search="focusOnCountry" />
-    <l-geo-json
-      v-for="(country, index) in countries"
-      :key="index"
-      :geojson="country.geojson"
-      :options="getCountryStyle(country)"
-      @click="openCountryDetails(country)"
-    /> -->
-    <CountryDetailsModal
-      v-if="selectedCountry"
-      :country="selectedCountry"
-      @close="closeModal"
-      @mark-as-visited="markAsVisited"
-      @mark-as-to-visit="markAsToVisit"
+  <div>
+    <div class="controls">
+      <button @click="toggleEditMode">
+        {{ isEditMode ? "Passer en mode Vue" : "Passer en mode Édition" }}
+      </button>
+    </div>
+    <div id="map"></div>
+    <CountryEditor
+      v-if="showEditor"
+      :isVisible="showEditor"
+      :countryName="selectedCountryName"
+      :initialDescription="selectedCountryDescription"
+      :initialPhotos="selectedCountryPhotos"
+      :initialState="selectedCountryState"
+      @save="handleCountrySave"
+      @close="closeEditor"
     />
   </div>
 </template>
@@ -21,29 +22,37 @@
 <script>
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import CountryDetailsModal from "./CountryDetailsModal.vue";
+import CountryEditor from "./CountryEditor.vue";
 import axios from "axios";
 
 export default {
+  components: {
+    CountryEditor,
+  },
   data() {
     return {
-      map: null,           // La carte Leaflet
-      visitedLayer: L.layerGroup(),   // Overlay pour les pays visités
-      toVisitLayer: L.layerGroup(),   // Overlay pour les pays à visiter
-      countries: [],       // Liste des pays avec leurs états
-      userId: 1,           // ID de l'utilisateur (à adapter selon l'utilisateur connecté)
+      map: null,
+      visitedLayer: L.layerGroup(),
+      toVisitLayer: L.layerGroup(),
+      geoJsonLayer: null,
+      isEditMode: false, // Mode vue ou édition
+      countries: [], // Liste des pays et leurs informations
+      userId: 1, // ID de l'utilisateur
+      showEditor: false, // Contrôle l'affichage de l'éditeur
+      selectedCountryName: "",
+      selectedCountryDescription: "",
+      selectedCountryPhotos: [],
+      selectedCountryState: "",
+      selectedCountryCode: "",
     };
   },
   async mounted() {
-    // Initialisation de la carte après que le composant soit monté
-    this.initializeMap();
-
-    // Récupération de l'état des pays pour cet utilisateur
-    this.fetchCountryStates(this.userId);
+    await this.initializeMap();
+    await this.loadGeoJson();
+    await this.fetchCountryStates(this.userId);
   },
   methods: {
     async initializeMap() {
-      // Initialiser la carte Leaflet
       this.map = L.map("map", {
         zoomControl: true,
         maxZoom: 5,
@@ -53,7 +62,7 @@ export default {
           [90, 180],
         ],
       }).setView([50, 10], 4);
-      // Ajouter la couche de tuiles OpenStreetMap
+
       L.tileLayer(
         "https://api.mapbox.com/styles/v1/mapbox/navigation-day-v1/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoidGJhcmF0IiwiYSI6ImNtMzR4bWZqdDA0bnQybHIxdDhtczR5N2IifQ.5eGBEQ6vie7GkThK6vQzHw",
         {
@@ -63,184 +72,156 @@ export default {
         }
       ).addTo(this.map);
 
-      // Initialiser les couches overlay pour les pays visités et à visiter
+      // Ajouter les overlays
       const overlays = {
         "Pays visités": this.visitedLayer,
         "Pays à visiter": this.toVisitLayer,
       };
-
-      // Ajouter le contrôle pour afficher ou masquer les overlays
       L.control.layers(null, overlays).addTo(this.map);
 
-      //this.loadCountries();
-      
-      // Charger les pays depuis une source GeoJSON (ici un lien direct)
+      // Ajouter les overlays à la carte
+      this.visitedLayer.addTo(this.map);
+      this.toVisitLayer.addTo(this.map);
+    },
+    async loadGeoJson() {
       const geojsonUrl = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
       const response = await fetch(geojsonUrl);
       const geojsonData = await response.json();
 
-      // Ajouter les pays en tant que couches GeoJSON
-      this.countries = L.geoJSON(geojsonData, {
-        style: this.getDefaultCountryStyle(), // Style par défaut
+      this.geoJsonLayer = L.geoJSON(geojsonData, {
+        style: (feature) => this.getCountryStyle(feature.properties.ISO_A3),
         onEachFeature: (feature, layer) => {
-          // Gestion du clic pour basculer entre les états
-          layer.on("click", () => this.toggleCountryState(layer, feature.properties.ISO_A3));
+          layer.on("click", () => {
+            if (this.isEditMode) {
+              this.openEditor(feature.properties); // Appeler l'éditeur en mode édition
+            }
+          });
         },
       }).addTo(this.map);
-      
+
+      // Ajouter les pays dans la liste locale
+      this.countries = geojsonData.features.map((feature) => ({
+        code: feature.properties.ISO_A3,
+        name: feature.properties.ADMIN,
+        state: "not_visible", // Par défaut
+        description: "", // Simulez des descriptions
+        photos: [], // Simulez des photos
+      }));
     },
-
-    /* Taff à faire avec la BDD
-    async loadCountries() {
-      const geojsonUrl = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
-      const response = await fetch(geojsonUrl);
-      const geojsonData = await response.json();
-
-      // Charger les informations utilisateur
-      const userCountries = await axios.get("/api/user/countries"); // Exemple API utilisateur
-
-      // Fusionner les données GeoJSON avec les données utilisateur
-      this.countries = geojsonData.features.map((feature) => {
-        const userData = userCountries.data.find((c) => c.isoCode === feature.properties.ISO_A3);
-        return {
-          ...feature,
-          status: userData ? userData.status : "unvisited", // Statut utilisateur (par ex. 'visited')
-          name: feature.properties.ADMIN,
-          isoCode: feature.properties.ISO_A3,
-        };
-      });
-      this.addCountriesToMap();
-    }, */
-
     async fetchCountryStates(userId) {
       try {
-        // Requête pour récupérer l'état des pays pour un utilisateur
-        const response = await fetch(`http://localhost:3000/api/countries/${userId}`);
-        const data = await response.json();
+        const response = await axios.get(`http://localhost:3000/api/countries/${userId}`);
+        const data = response.data;
 
-        // Traitez les données reçues ici et mettez à jour les couches sur la carte
         data.forEach((country) => {
-          this.updateCountryOnMap(country.country_code, country.state);
+          this.updateCountryStyle(country.country_code, country.state);
         });
       } catch (error) {
         console.error("Erreur lors de la récupération des états des pays :", error);
       }
     },
+    toggleEditMode() {
+      this.isEditMode = !this.isEditMode;
+      console.log(this.isEditMode ? "Mode édition activé" : "Mode vue activé");
+    },
+    openEditor(properties) {
+      const country = this.countries.find((c) => c.code === properties.ISO_A3);
 
-    updateCountryOnMap(countryCode, state) {
-      // Recherche du pays dans la carte via son code ISO (par exemple 'FRA' pour la France)
-      const countryLayer = this.getCountryLayerByCode(countryCode);
+      this.selectedCountryName = properties.ADMIN;
+      this.selectedCountryCode = properties.ISO_A3;
+      this.selectedCountryDescription = country?.description || "";
+      this.selectedCountryPhotos = country?.photos || [];
+      this.selectedCountryState = country?.state || "not_visible";
 
-      if (countryLayer) {
-        // Mettre à jour l'état du pays selon les données reçues de l'API
-        if (state === "visited") {
-          this.visitedLayer.addLayer(countryLayer);
-          countryLayer.setStyle(this.getVisitedCountryStyle());
-        } else if (state === "to_visit") {
-          this.toVisitLayer.addLayer(countryLayer);
-          countryLayer.setStyle(this.getToVisitCountryStyle());
-        } else {
-          // Pays non visible : retirer de la carte
-          this.map.removeLayer(countryLayer);
-        }
+      this.showEditor = true;
+    },
+    closeEditor() {
+      this.showEditor = false;
+    },
+    handleCountrySave({ description, photos, state }) {
+      const country = this.countries.find((c) => c.code === this.selectedCountryCode);
+      if (country) {
+        country.state = state;
+        country.description = description;
+        country.photos = photos;
+      }
+
+      // Mettre à jour le style sur la carte
+      this.updateCountryStyle(this.selectedCountryCode, state);
+
+      // Envoyer les modifications à l'API
+      this.updateCountryData(this.selectedCountryCode, { description, photos, state });
+
+      this.closeEditor();
+    },
+    async updateCountryData(countryCode, data) {
+      try {
+        await axios.post("http://localhost:3000/api/country/update", {
+          user_id: this.userId,
+          country_code: countryCode,
+          ...data,
+        });
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour des données du pays :", error);
       }
     },
+    updateCountryStyle(countryCode, state) {
+      this.geoJsonLayer.eachLayer((layer) => {
+        if (layer.feature.properties.ISO_A3 === countryCode) {
+          layer.setStyle(this.getStyleForState(state));
 
-    getCountryLayerByCode(countryCode) {
-      // Fonction pour retrouver un pays via son code ISO dans la carte Leaflet
-      let countryLayer = null;
-      this.countries.eachLayer((layer) => {
-        if (layer.feature && layer.feature.properties.ISO_A3 === countryCode) {
-          countryLayer = layer;
+          // Mettre à jour les overlays
+          if (state === "visited") {
+            this.visitedLayer.addLayer(layer);
+            this.toVisitLayer.removeLayer(layer);
+          } else if (state === "to_visit") {
+            this.toVisitLayer.addLayer(layer);
+            this.visitedLayer.removeLayer(layer);
+          } else {
+            this.visitedLayer.removeLayer(layer);
+            this.toVisitLayer.removeLayer(layer);
+          }
         }
       });
-      return countryLayer;
     },
-
-    toggleCountryState(layer, countryCode) {
-      // Ouvrir une boîte de dialogue pour permettre à l'utilisateur de définir l'état du pays
-      const currentState = window.prompt(
-        `Choisissez l'état pour le pays ${countryCode} :\n1 - Non visible\n2 - Visité\n3 - À visiter`,
-        "1"
-      );
-
-      let newState = "not_visible";
-      if (currentState === "2") {
-        newState = "visited";
-        this.visitedLayer.addLayer(layer);
-        this.toVisitLayer.removeLayer(layer);
-        layer.setStyle(this.getVisitedCountryStyle());
-      } else if (currentState === "3") {
-        newState = "to_visit";
-        this.toVisitLayer.addLayer(layer);
-        this.visitedLayer.removeLayer(layer);
-        layer.setStyle(this.getToVisitCountryStyle());
-      } else {
-        // Si l'état est "1", retirer le pays de la carte
-        this.visitedLayer.removeLayer(layer);
-        this.toVisitLayer.removeLayer(layer);
-        this.map.removeLayer(layer);
+    getCountryStyle(countryCode) {
+      const country = this.countries.find((c) => c.code === countryCode);
+      return this.getStyleForState(country ? country.state : "not_visible");
+    },
+    getStyleForState(state) {
+      if (state === "visited") {
+        return {
+          fillColor: "blue",
+          weight: 1,
+          color: "#555",
+          fillOpacity: 0.7,
+        };
+      } else if (state === "to_visit") {
+        return {
+          fillColor: "green",
+          weight: 1,
+          color: "#555",
+          fillOpacity: 0.7,
+        };
       }
-
-      // Mettre à jour l'état du pays dans la base de données via l'API
-      this.updateCountryState(this.userId, countryCode, newState);
-    },
-
-    async updateCountryState(userId, countryCode, state) {
-      try {
-        // Requête POST pour mettre à jour l'état d'un pays dans la base de données
-        const response = await fetch("http://localhost:3000/api/country/update", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            country_code: countryCode,
-            state: state,
-          }),
-        });
-        const result = await response.json();
-        console.log(result.message);  // Message de succès
-      } catch (error) {
-        console.error("Erreur lors de la mise à jour de l'état du pays :", error);
-      }
-    },
-
-    // Styles pour les pays en fonction de leur état
-    getDefaultCountryStyle() {
       return {
         fillColor: "transparent",
-        weight: 2,
-        opacity: 1,
+        weight: 1,
         color: "transparent",
-        fillOpacity: 0.5,
-      };
-    },
-    getVisitedCountryStyle() {
-      return {
-        fillColor: "blue",
-        weight: 2,
-        opacity: 1,
-        color: "white",
-        fillOpacity: 0.7,
-      };
-    },
-    getToVisitCountryStyle() {
-      return {
-        fillColor: "green",
-        weight: 2,
-        opacity: 1,
-        color: "white",
-        fillOpacity: 0.7,
+        fillOpacity: 0.2,
       };
     },
   },
 };
 </script>
+
 <style>
-  #map {
-    width: 100%;
-    height: 90vh;
-  }
+#map {
+  width: 100%;
+  height: 90vh;
+}
+
+.controls {
+  margin: 10px;
+}
 </style>
