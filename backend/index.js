@@ -232,23 +232,48 @@ app.get("/api/demanded", async (req, res) => {
 });
 
 // Endpoint : Détails d'un pays
-app.get("/api/countries/:id/details", async (req, res) => {
+app.get("/api/pays/:id/details", async (req, res) => {
   const countryId = parseInt(req.params.id);
   try {
     const country = await prisma.country.findUnique({
       where: { id: countryId },
       include: {
-        visits: true,
+        visits: {
+          include: {
+            user: true, // Inclure les informations sur les utilisateurs associés aux visites
+          },
+        },
       },
     });
+
+    if (!country) {
+      return res.status(404).json({ error: "Pays introuvable." });
+    }
+
+    const visitedCount = country.visits.filter((v) => v.status === "visited").length;
+    const wishlistCount = country.visits.filter((v) => v.status === "wishlist").length;
+
+    // Filtrer les visites avec des descriptions (utilisées comme commentaires)
+    const comments = country.visits
+      .filter((v) => v.description) // Garde uniquement les visites avec une description
+      .map((visit) => ({
+        user: {
+          id: visit.user.id,
+          email: visit.user.email,
+        },
+        description: visit.description,
+        status: visit.status,
+      }));
 
     res.status(200).json({
       id: country.id,
       name: country.name,
-      visitsCount: country.visits.filter((v) => v.status === "visited").length,
-      visitRequests: country.visits.filter((v) => v.status === "wishlist").length,
+      visitsCount: visitedCount,
+      visitRequests: wishlistCount,
+      comments: comments,
     });
   } catch (error) {
+    console.error("Erreur serveur:", error);
     res.status(500).json({ error: "Erreur serveur." });
   }
 });

@@ -1,8 +1,8 @@
 <template>
-  <div class="p-6 bg-gray-100 min-h-screen">
-    <h1 class="text-3xl font-bold text-center mb-6">Classement des Pays</h1>
+  <div class="leaderboard-container">
+    <h1 class="leaderboard-title">Classement des Pays</h1>
 
-    <div class="tabs mb-6">
+    <div class="tabs">
       <button
         v-for="tab in tabs"
         :key="tab.key"
@@ -13,10 +13,10 @@
       </button>
     </div>
 
-    <div class="leaderboard bg-white shadow rounded-lg p-4">
-      <table class="w-full text-left border-collapse">
+    <div class="leaderboard">
+      <table class="leaderboard-table">
         <thead>
-          <tr class="bg-gray-200">
+          <tr>
             <th>#</th>
             <th>Pays</th>
             <th v-if="currentTab !== 'demanded'">
@@ -30,7 +30,7 @@
           <tr
             v-for="(country, index) in filteredCountries"
             :key="country.id"
-            class="border-b hover:bg-gray-50"
+            class="table-row"
           >
             <td>{{ index + 1 }}</td>
             <td>{{ country.name }}</td>
@@ -39,6 +39,7 @@
             <td v-if="currentTab === 'demanded'">{{ country.visitRequests }}</td>
             <td>
               <button
+                class="details-button"
                 @click="viewCountryDetails(country)"
               >
                 Voir Détails
@@ -49,21 +50,30 @@
       </table>
     </div>
 
-    <div v-if="selectedCountry" class="fixed inset-0 bg-black bg-opacity-50 flex">
-      <div class="bg-white p-6 rounded">
-        <h3>{{ selectedCountry.name }}</h3>
-        <p>Visites: {{ selectedCountry.visitsCount }}</p>
-        <p>Demandes: {{ selectedCountry.visitRequests }}</p>
-        <button @click="closeModal">Fermer</button>
-      </div>
+    <div
+      v-if="selectedCountryDetails"
+      class="modal-overlay"
+      @click.self="closeModal"
+    >
+      <CountryReviews
+        :key="selectedCountryDetails.id"
+        :country="selectedCountryDetails"
+        :comments="selectedCountryDetails.comments"
+        :averageRating="selectedCountryDetails.averageRating"
+        @close="closeModal"
+      />
     </div>
   </div>
 </template>
 
 <script>
 import axios from "axios";
+import CountryReviews from "./CountryReviews.vue";
 
 export default {
+  components: {
+    CountryReviews,
+  },
   data() {
     return {
       tabs: [
@@ -75,7 +85,7 @@ export default {
       mostVisitedCountries: [],
       topRatedCountries: [],
       demandedCountries: [],
-      selectedCountry: null,
+      selectedCountryDetails: null,
     };
   },
   computed: {
@@ -98,11 +108,15 @@ export default {
       this.demandedCountries = demanded.data;
     },
     async viewCountryDetails(country) {
-      const response = await axios.get(`http://localhost:3001/api/countries/${country.id}/details`);
-      this.selectedCountry = response.data;
+      try {
+        const response = await axios.get(`http://localhost:3001/api/pays/${country.id}/details`);
+        this.selectedCountryDetails = response.data;
+      } catch (error) {
+        console.error("Erreur lors de la récupération des détails :", error);
+      }
     },
     closeModal() {
-      this.selectedCountry = null;
+      this.selectedCountryDetails = null;
     },
   },
   mounted() {
@@ -111,46 +125,116 @@ export default {
 };
 </script>
 
-
 <style scoped>
-/* Style des onglets */
+/* Conteneur principal */
+.leaderboard-container {
+  padding: 20px;
+  background-color: #f9f9f9;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+}
+
+/* Titre */
+.leaderboard-title {
+  text-align: center;
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Onglets */
 .tabs {
   display: flex;
-  gap: 1rem;
   justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 .tab {
-  padding: 0.5rem 1rem;
+  padding: 10px 15px;
   border: 1px solid #ddd;
-  border-radius: 0.5rem;
+  border-radius: 5px;
+  background-color: #fff;
   cursor: pointer;
-  background-color: #f9f9f9;
-  transition: background-color 0.3s, color 0.3s;
+  font-weight: 500;
+  transition: all 0.3s ease;
 }
 .tab:hover {
-  background-color: #f0f0f0;
+  background-color: #f1f1f1;
 }
 .tab.active {
-  background-color: #4f46e5;
-  color: white;
+  background-color: #4caf50;
+  color: #fff;
   font-weight: bold;
 }
 
-/* Table styles */
-table {
+/* Tableau */
+.leaderboard {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+}
+.leaderboard-table {
   width: 100%;
   border-collapse: collapse;
-}
-th,
-td {
   text-align: left;
-  padding: 0.75rem;
 }
-thead th {
-  background-color: #f3f4f6;
-  font-weight: 600;
+.leaderboard-table th,
+.leaderboard-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
 }
-tbody tr:hover {
-  background-color: #f9fafb;
+.leaderboard-table th {
+  background-color: #f3f3f3;
+  font-weight: bold;
+}
+.leaderboard-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Bouton des détails */
+.details-button {
+  color: #007bff;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 14px;
+  transition: color 0.3s ease;
+}
+.details-button:hover {
+  color: #0056b3;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+/* Conteneur principal avec image de fond */
+.leaderboard-container {
+  padding: 20px;
+  background-image: url('../assets/avatar-placeholder.png'); /* Remplace par le chemin de ton image */
+  background-size: cover; /* Assure que l'image couvre tout l'espace */
+  background-position: center; /* Centre l'image */
+  background-attachment: fixed; /* L'image reste fixe lors du défilement */
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: #fff; /* Texte en blanc pour une bonne lisibilité */
+}
+
+/* Ajout d'un fond semi-transparent pour améliorer la lisibilité */
+.leaderboard {
+  background-color: rgba(255, 255, 255, 0.9); /* Fond blanc avec transparence */
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  color: #333; /* Texte noir dans la zone du tableau */
 }
 </style>
