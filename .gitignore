@@ -2,3 +2,9 @@ node_modules
 # Keep environment variables out of version control
 .env
 .db
+backend/prisma/dev.db
+backend/prisma/migrations/20241207133857_remove_photos/migration.sql
+backend/prisma/migrations/20241207145639_init/migration.sql
+backend/prisma/migrations/20241207150307_init/migration.sql
+backend/prisma/migrations/20241207133857_remove_photos/migration.sql
+.gitignore

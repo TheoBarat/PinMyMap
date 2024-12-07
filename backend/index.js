@@ -106,7 +106,6 @@ app.get('/api/countries/:userId', async (req, res) => {
       where: { userId: parseInt(userId) },
       include: { country: true },
     });
-
     const data = visits.map((visit) => ({
       countryCode: visit.country.code,
       countryName: visit.country.name,
@@ -139,21 +138,29 @@ app.get("/me", (req, res) => {
 
 // Ajouter ou mettre à jour une visite
 app.post('/api/countries/update', async (req, res) => {
-  const { userId, countryCode, state, description, color } = req.body;
-
-  // Renomme `state` en `status` pour correspondre au modèle Prisma
-  const status = state;
+  const { userId, countryCode, countryName, status, description, color } = req.body;
 
   try {
-    console.log("Requête reçue :", { userId, countryCode, status, description, color });
-
     let country = await prisma.country.findUnique({ where: { code: countryCode } });
     if (!country) {
+      // Utilisez `countryName` pour enregistrer le vrai nom du pays
       country = await prisma.country.create({
-        data: { code: countryCode, name: countryCode },
+        data: { code: countryCode, name: countryName },
       });
     }
 
+    if (status === "not_selected") {
+      // Supprimez la visite si "non sélectionné"
+      await prisma.visit.deleteMany({
+        where: {
+          userId: parseInt(userId),
+          countryId: country.id,
+        },
+      });
+      return res.json({ message: "Visite supprimée avec succès" });
+    }
+
+    // Sinon, mettez à jour ou insérez
     const visit = await prisma.visit.upsert({
       where: {
         userId_countryId: {
@@ -169,6 +176,109 @@ app.post('/api/countries/update', async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la mise à jour du pays :', error);
     res.status(500).json({ error: 'Erreur lors de la mise à jour du pays', details: error.message });
+  }
+});
+
+// Endpoint : Les pays les plus visités
+app.get('/api/most-visited', async (req, res) => {
+  try {
+    const mostVisited = await prisma.country.findMany({
+      include: {
+        visits: {
+          where: { status: 'visited' },
+        },
+      },
+      orderBy: {
+        visits: {
+          _count: 'desc',
+        },
+      },
+      take: 10, // Limiter aux 10 pays les plus visités
+    });
+
+    const result = mostVisited.map((country) => ({
+      id: country.id,
+      name: country.name,
+      code: country.code,
+      visitsCount: country.visits.length,
+    }))
+    .sort((a, b) => b.visitsCount - a.visitsCount); // Tri décroissant par nombre de visites
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des pays les plus visités:', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des pays les plus visités' });
+  }
+});
+
+// Endpoint : Les pays les mieux notés (exemple basé sur une note fictive)
+app.get("/api/top-rated", async (req, res) => {
+  try {
+    const topRated = await prisma.country.findMany({
+      orderBy: { population: "desc" }, // Exemple : classez par population
+      take: 10,
+    });
+
+    const response = topRated.map((country) => ({
+      id: country.id,
+      name: country.name,
+      rating: Math.random() * 5, // Exemple d'une note aléatoire
+    }))
+    .sort((a, b) => b.rating - a.rating); // Tri décroissant par note
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+// Endpoint : Les pays les plus demandés
+app.get("/api/demanded", async (req, res) => {
+  try {
+    const demanded = await prisma.country.findMany({
+      include: {
+        visits: {
+          where: { status: "to_visit" },
+        },
+      },
+      orderBy: {
+        visits: { _count: "desc" },
+      },
+      take: 10,
+    });
+
+    const response = demanded.map((country) => ({
+      id: country.id,
+      name: country.name,
+      visitRequests: country.visits.length,
+    }))
+    .sort((a, b) => b.visitRequests - a.visitRequests);
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur." });
+  }
+});
+
+// Endpoint : Détails d'un pays
+app.get("/api/countries/:id/details", async (req, res) => {
+  const countryId = parseInt(req.params.id);
+  try {
+    const country = await prisma.country.findUnique({
+      where: { id: countryId },
+      include: {
+        visits: true,
+      },
+    });
+
+    res.status(200).json({
+      id: country.id,
+      name: country.name,
+      visitsCount: country.visits.filter((v) => v.status === "visited").length,
+      visitRequests: country.visits.filter((v) => v.status === "wishlist").length,
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Erreur serveur." });
   }
 });
 

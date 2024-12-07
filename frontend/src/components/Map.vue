@@ -7,8 +7,16 @@
     <div class="controls">
       <ToggleButton :isEditMode="isEditMode" @toggle="toggleEditMode" />
     </div>
+    <CountryView
+      v-if="!isEditMode && showCountryView"
+      :isVisible="showCountryView"
+      :countryName="selectedCountryName"
+      :description="selectedCountryDescription"
+      :state="selectedCountryState"
+      @close="closeView"
+    />
     <CountryEditor
-      v-if="showEditor"
+      v-if="isEditMode && showEditor"
       :isVisible="showEditor"
       :countryName="selectedCountryName"
       :initialDescription="selectedCountryDescription"
@@ -22,12 +30,14 @@
 <script>
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import CountryView from "./CountryView.vue";
 import CountryEditor from "./CountryEditor.vue";
 import ToggleButton from "./ToggleButton.vue";
 import axios from "axios";
 
 export default {
   components: {
+    CountryView,
     CountryEditor,
     ToggleButton,
   },
@@ -39,8 +49,9 @@ export default {
       geoJsonLayer: null,
       isEditMode: false,
       countries: [],
-      userId: 1,
+      userId: null,
       showEditor: false,
+      showCountryView: false,
       selectedCountryName: "",
       selectedCountryDescription: "",
       selectedCountryState: "",
@@ -54,6 +65,11 @@ export default {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         this.userId = payload.userId;
+
+        // Charger l'état sauvegardé depuis le localStorage
+        const savedMode = localStorage.getItem("mapMode");
+        this.isEditMode = savedMode === "edit";
+
         await this.initializeMap();
         await this.loadGeoJson();
         await this.fetchCountryStates(this.userId);
@@ -61,7 +77,7 @@ export default {
         console.error("Erreur :", error);
         this.$router.push("/login");
       } finally {
-        this.loading = false; // Fin du chargement
+        this.loading = false;
       }
     } else {
       this.$router.push("/login");
@@ -96,7 +112,12 @@ export default {
 
       this.visitedLayer.addTo(this.map);
       this.toVisitLayer.addTo(this.map);
-      console.log("Initialisation de la carte Leaflet.");
+
+      // Différencier les interactions selon le mode
+      this.map.on("click", (e) => {
+        const { lat, lng } = e.latlng;
+        console.log(`Clicked on: Latitude ${lat}, Longitude ${lng}`);
+      });
     },
     async loadGeoJson() {
       const geojsonUrl = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson";
@@ -107,19 +128,25 @@ export default {
         style: (feature) => this.getCountryStyle(feature.properties.ISO_A3),
         onEachFeature: (feature, layer) => {
           layer.on("click", () => {
-            if (this.isEditMode) {
-              this.openEditor(feature.properties);
+            const country = this.countries.find((c) => c.code === feature.properties.ISO_A3);
+            if (country) {
+              if (this.isEditMode) {
+                this.openEditor(country);
+              } else if (country.state === "visited" || country.state === "to_visit") {
+                this.openView(country);
+              }
             }
           });
         },
       }).addTo(this.map);
 
+      // Initialiser les pays comme "non sélectionné" par défaut
       this.countries = geojsonData.features.map((feature) => ({
         code: feature.properties.ISO_A3,
         name: feature.properties.ADMIN,
-        state: "not_visible",
+        state: "not_selected", // Défini par défaut comme "non sélectionné"
         description: "",
-        color: "",
+        color: "transparent",
       }));
     },
     async fetchCountryStates(userId) {
@@ -142,48 +169,62 @@ export default {
     },
     toggleEditMode() {
       this.isEditMode = !this.isEditMode;
+      this.showCountryView = false; // Fermer la vue si on passe en édition
+      this.showEditor = false; // Fermer l'éditeur si on repasse en vue
+
+      // Sauvegarder l'état dans le localStorage
+      localStorage.setItem("mapMode", this.isEditMode ? "edit" : "view");
     },
-    openEditor(properties) {
-      const country = this.countries.find((c) => c.code === properties.ISO_A3);
-
-      this.selectedCountryName = properties.ADMIN;
-      this.selectedCountryCode = properties.ISO_A3;
-      this.selectedCountryDescription = country?.description || "";
-      this.selectedCountryState = country?.state || "not_visible";
-
+    openEditor(country) {
+      this.selectedCountryName = country.name;
+      this.selectedCountryCode = country.code;
+      this.selectedCountryDescription = country.description;
+      this.selectedCountryState = country.state;
       this.showEditor = true;
     },
     closeEditor() {
       this.showEditor = false;
+    },
+    openView(country) {
+      this.selectedCountryName = country.name;
+      this.selectedCountryDescription = country.description;
+      this.selectedCountryState = country.state;
+      this.showCountryView = true;
+    },
+    closeView() {
+      this.showCountryView = false;
     },
     handleCountrySave({ description, state }) {
       const country = this.countries.find((c) => c.code === this.selectedCountryCode);
       if (country) {
         country.state = state;
         country.description = description;
-        country.color = state === "visited" ? "blue" : "green";
+        country.color = state === "visited" ? "blue" : state === "to_visit" ? "green" : "transparent";
       }
 
-      this.updateCountryStyle(this.selectedCountryCode, state, country.color);
-
+      // Envoyer les modifications au backend
       this.updateCountryData(this.selectedCountryCode, {
         description,
         state,
         color: country.color,
+      }).then(() => {
+        // Sauvegarder le mode actuel dans le localStorage avant le rechargement
+        localStorage.setItem("mapMode", this.isEditMode ? "edit" : "view");
+        // Rafraîchir la page après la mise à jour
+        window.location.reload();
       });
 
-      this.closeEditor();
+      // Recharger les états depuis le backend pour garantir un rafraîchissement complet
+      this.fetchCountryStates(this.userId);
+
+      this.closeEditor(); // Fermer l'éditeur
     },
     async updateCountryData(countryCode, data) {
       try {
-        console.log("Données envoyées :", {
-          userId: this.userId,
-          countryCode,
-          ...data,
-        });
         const response = await axios.post("http://localhost:3001/api/countries/update", {
           userId: this.userId,
           countryCode,
+          countryName: this.selectedCountryName,
           ...data,
         });
         console.log("Réponse de l'API après mise à jour :", response.data);
@@ -198,18 +239,16 @@ export default {
             fillColor: color || this.getStyleForState(state).fillColor,
             weight: 1,
             color: "#555",
-            fillOpacity: 0.7,
+            fillOpacity: state === "not_selected" ? 0.2 : 0.7, // Opacité différente pour "non sélectionné"
           });
 
+          // Retirer le layer des overlays s'il est "non sélectionné"
           if (state === "visited") {
             this.visitedLayer.addLayer(layer);
             this.toVisitLayer.removeLayer(layer);
           } else if (state === "to_visit") {
             this.toVisitLayer.addLayer(layer);
             this.visitedLayer.removeLayer(layer);
-          } else {
-            this.visitedLayer.removeLayer(layer);
-            this.toVisitLayer.removeLayer(layer);
           }
         }
       });
@@ -233,6 +272,13 @@ export default {
           color: "#555",
           fillOpacity: 0.7,
         };
+      } else if (state === "not_selected") { // Pays non sélectionné
+        return {
+          fillColor: "transparent",
+          weight: 1,
+          color: "#555",
+          fillOpacity: 0.2,
+        };
       }
       return {
         fillColor: "transparent",
@@ -240,7 +286,7 @@ export default {
         color: "transparent",
         fillOpacity: 0.2,
       };
-    },
+    }
   },
 };
 </script>
