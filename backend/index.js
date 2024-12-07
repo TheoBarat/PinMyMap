@@ -99,7 +99,6 @@ app.get('/api/countries/:userId', async (req, res) => {
       where: { userId: parseInt(userId) },
       include: { country: true },
     });
-
     const data = visits.map((visit) => ({
       countryCode: visit.country.code,
       countryName: visit.country.name,
@@ -117,21 +116,29 @@ app.get('/api/countries/:userId', async (req, res) => {
 
 // Ajouter ou mettre à jour une visite
 app.post('/api/countries/update', async (req, res) => {
-  const { userId, countryCode, state, description, color } = req.body;
-
-  // Renomme `state` en `status` pour correspondre au modèle Prisma
-  const status = state;
+  const { userId, countryCode, countryName, status, description, color } = req.body;
 
   try {
-    console.log("Requête reçue :", { userId, countryCode, status, description, color });
-
     let country = await prisma.country.findUnique({ where: { code: countryCode } });
     if (!country) {
+      // Utilisez `countryName` pour enregistrer le vrai nom du pays
       country = await prisma.country.create({
-        data: { code: countryCode, name: countryCode },
+        data: { code: countryCode, name: countryName },
       });
     }
 
+    if (status === "not_selected") {
+      // Supprimez la visite si "non sélectionné"
+      await prisma.visit.deleteMany({
+        where: {
+          userId: parseInt(userId),
+          countryId: country.id,
+        },
+      });
+      return res.json({ message: "Visite supprimée avec succès" });
+    }
+
+    // Sinon, mettez à jour ou insérez
     const visit = await prisma.visit.upsert({
       where: {
         userId_countryId: {
@@ -149,6 +156,7 @@ app.post('/api/countries/update', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la mise à jour du pays', details: error.message });
   }
 });
+
 
 /**
  * Lancement du serveur
