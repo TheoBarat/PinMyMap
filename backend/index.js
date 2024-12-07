@@ -42,26 +42,27 @@ app.get('/users', async (req, res) => {
 });
 
 // Créer un utilisateur
-app.post('/users', validateUserCreation, async (req, res) => {
-  const { email, password } = req.body;
+app.post('/users', async (req, res) => {
+  const { email, password, firstName, lastName } = req.body;
+
+  if (!email || !password || !firstName || !lastName) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
 
   try {
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
     const hashedPassword = bcrypt.hashSync(password, 8);
+
     const newUser = await prisma.user.create({
-      data: { email, password: hashedPassword },
+      data: { email, password: hashedPassword, firstName, lastName },
     });
 
     res.status(201).json({ message: "User created successfully", user: newUser });
   } catch (error) {
-    console.error('Erreur lors de la création de l’utilisateur', error);
-    res.status(500).json({ error: 'Erreur lors de la création de l’utilisateur' });
+    console.error("Error creating user:", error);
+    res.status(500).json({ message: "User already exists" });
   }
 });
+
 
 // Login utilisateur
 app.post('/login', async (req, res) => {
@@ -75,10 +76,16 @@ app.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
+      {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName, // Ajouter le prénom
+        lastName: user.lastName,   // Ajouter le nom
+      },
       "your-secret-key",
       { expiresIn: "1h" }
     );
+    
 
     res.status(200).json({ message: "Login successful", token });
   } catch (error) {
@@ -99,7 +106,6 @@ app.get('/api/countries/:userId', async (req, res) => {
       where: { userId: parseInt(userId) },
       include: { country: true },
     });
-
     const data = visits.map((visit) => ({
       countryCode: visit.country.code,
       countryName: visit.country.name,
@@ -115,21 +121,49 @@ app.get('/api/countries/:userId', async (req, res) => {
   }
 });
 
+app.get("/me", (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1]; // Récupérer le token
+    if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+    const decoded = jwt.verify(token, "your-secret-key"); // Vérifie le token
+    const { firstName, lastName, email } = decoded;
+
+    res.json({ firstName, lastName, email });
+  } catch (error) {
+    res.status(401).json({ message: "Invalid token" });
+  }
+});
+
+
 // Ajouter ou mettre à jour une visite
 app.post('/api/countries/update', async (req, res) => {
-  const { userId, countryCode, state, description, color } = req.body;
-
-  // Renomme `state` en `status` pour correspondre au modèle Prisma
-  const status = state;
+  const { userId, countryCode, countryName, state, description, color } = req.body;
 
   try {
-    console.log("Requête reçue :", { userId, countryCode, status, description, color });
+    // Vérifiez que 'state' est fourni
+    if (!state) {
+      return res.status(400).json({ message: "Le champ 'state' est requis." });
+    }
+
+    // Convertissez 'state' en 'status' pour correspondre au modèle Prisma
+    const status = state;
 
     let country = await prisma.country.findUnique({ where: { code: countryCode } });
     if (!country) {
       country = await prisma.country.create({
-        data: { code: countryCode, name: countryCode },
+        data: { code: countryCode, name: countryName || countryCode },
       });
+    }
+
+    if (status === "not_selected") {
+      await prisma.visit.deleteMany({
+        where: {
+          userId: parseInt(userId),
+          countryId: country.id,
+        },
+      });
+      return res.json({ message: "Visite supprimée avec succès" });
     }
 
     const visit = await prisma.visit.upsert({
@@ -139,8 +173,8 @@ app.post('/api/countries/update', async (req, res) => {
           countryId: country.id,
         },
       },
-      update: { status, description, color },
-      create: { userId: parseInt(userId), countryId: country.id, status, description, color },
+      update: { status, description: description || "", color: color || "transparent" },
+      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent" },
     });
 
     res.json({ message: 'Visite mise à jour avec succès', visit });
@@ -149,6 +183,7 @@ app.post('/api/countries/update', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la mise à jour du pays', details: error.message });
   }
 });
+
 
 // Endpoint : Les pays les plus visités
 app.get('/api/most-visited', async (req, res) => {

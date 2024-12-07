@@ -27,6 +27,13 @@
         v-model="state"
       />
       <label for="toVisit">À visiter</label><br />
+      <input
+        type="radio"
+        id="notSelected"
+        value="not_selected"
+        v-model="state"
+      />
+      <label for="notSelected">Non sélectionné</label><br />
     </div>
     <button @click="saveChanges" style="margin-right: 10px;">Enregistrer</button>
     <button @click="$emit('close')">Annuler</button>
@@ -44,7 +51,7 @@ export default {
   data() {
     return {
       description: this.initialDescription || "",
-      state: this.initialState || "to_visit",
+      state: this.initialState || "not_selected",
     };
   },
   methods: {
