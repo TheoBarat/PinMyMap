@@ -28,16 +28,17 @@ export default {
   name: "Header",
   data() {
     return {
-      isLoggedIn: false,
-      showDropdown: false,
+      isLoggedIn: false, // Indique si l'utilisateur est connecté
+      showDropdown: false, // Contrôle l'affichage du menu déroulant
       user: { email: "" },
     };
   },
   mounted() {
-  this.checkAuth();
+    this.checkAuth(); // Vérifie l'état de connexion
     eventBus.$on("auth-changed", (status) => {
       console.log("Événement auth-changed capté : ", status);
       this.isLoggedIn = status;
+      this.showDropdown = false; // Assure que le menu déroulant est fermé
       if (status) this.loadUser();
     });
   },
@@ -45,6 +46,7 @@ export default {
     checkAuth() {
       const token = localStorage.getItem("token");
       this.isLoggedIn = !!token;
+      this.showDropdown = false; // Assure que le menu est fermé au chargement
       if (this.isLoggedIn) this.loadUser();
     },
     loadUser() {
@@ -63,6 +65,7 @@ export default {
       localStorage.removeItem("token");
       this.isLoggedIn = false;
       this.user = { email: "" };
+      this.showDropdown = false; // Assure que le menu est fermé après déconnexion
       this.$router.push("/login");
       this.$root.$emit("auth-changed", false);
     },
@@ -75,7 +78,6 @@ export default {
   },
 };
 </script>
-
 
 <style scoped>
 .header {
@@ -144,4 +146,3 @@ export default {
   background-color: #f2f2f2;
 }
 </style>
-

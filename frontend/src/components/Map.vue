@@ -1,5 +1,8 @@
 <template>
   <div>
+    <div v-if="loading" class="loading-overlay">
+      <div class="spinner">Chargement...</div>
+    </div>
     <div id="map"></div>
     <div class="controls">
       <ToggleButton :isEditMode="isEditMode" @toggle="toggleEditMode" />
@@ -9,7 +12,6 @@
       :isVisible="showEditor"
       :countryName="selectedCountryName"
       :initialDescription="selectedCountryDescription"
-      :initialPhotos="selectedCountryPhotos"
       :initialState="selectedCountryState"
       @save="handleCountrySave"
       @close="closeEditor"
@@ -41,19 +43,28 @@ export default {
       showEditor: false,
       selectedCountryName: "",
       selectedCountryDescription: "",
-      selectedCountryPhotos: [],
       selectedCountryState: "",
       selectedCountryCode: "",
+      loading: true,
     };
   },
   async mounted() {
     const token = localStorage.getItem("token");
     if (token) {
-      await this.initializeMap();
-      await this.loadGeoJson();
-      await this.fetchCountryStates(this.userId);
+      try {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        this.userId = payload.userId;
+        await this.initializeMap();
+        await this.loadGeoJson();
+        await this.fetchCountryStates(this.userId);
+      } catch (error) {
+        console.error("Erreur :", error);
+        this.$router.push("/login");
+      } finally {
+        this.loading = false; // Fin du chargement
+      }
     } else {
-      this.$router.push("/login"); // Redirige si non connecté
+      this.$router.push("/login");
     }
   },
   methods: {
@@ -77,6 +88,12 @@ export default {
         }
       ).addTo(this.map);
 
+      const overlays = {
+        "Pays visités": this.visitedLayer,
+        "Pays à visiter": this.toVisitLayer,
+      };
+      L.control.layers(null, overlays).addTo(this.map);
+
       this.visitedLayer.addTo(this.map);
       this.toVisitLayer.addTo(this.map);
       console.log("Initialisation de la carte Leaflet.");
@@ -91,28 +108,33 @@ export default {
         onEachFeature: (feature, layer) => {
           layer.on("click", () => {
             if (this.isEditMode) {
-              this.openEditor(feature.properties); // Appeler l'éditeur en mode édition
+              this.openEditor(feature.properties);
             }
           });
         },
       }).addTo(this.map);
 
-      // Ajouter les pays dans la liste locale
       this.countries = geojsonData.features.map((feature) => ({
         code: feature.properties.ISO_A3,
         name: feature.properties.ADMIN,
-        state: "not_visible", // Par défaut
-        description: "", // Simulez des descriptions
-        photos: [], // Simulez des photos
+        state: "not_visible",
+        description: "",
+        color: "",
       }));
     },
     async fetchCountryStates(userId) {
       try {
-        const response = await axios.get(`http://localhost:3000/api/countries/${userId}`);
+        const response = await axios.get(`http://localhost:3001/api/countries/${userId}`);
         const data = response.data;
 
         data.forEach((country) => {
-          this.updateCountryStyle(country.country_code, country.state);
+          const existingCountry = this.countries.find((c) => c.code === country.countryCode);
+          if (existingCountry) {
+            existingCountry.state = country.state;
+            existingCountry.description = country.description;
+            existingCountry.color = country.color;
+          }
+          this.updateCountryStyle(country.countryCode, country.state, country.color);
         });
       } catch (error) {
         console.error("Erreur lors de la récupération des états des pays :", error);
@@ -127,7 +149,6 @@ export default {
       this.selectedCountryName = properties.ADMIN;
       this.selectedCountryCode = properties.ISO_A3;
       this.selectedCountryDescription = country?.description || "";
-      this.selectedCountryPhotos = country?.photos || [];
       this.selectedCountryState = country?.state || "not_visible";
 
       this.showEditor = true;
@@ -135,39 +156,51 @@ export default {
     closeEditor() {
       this.showEditor = false;
     },
-    handleCountrySave({ description, photos, state }) {
+    handleCountrySave({ description, state }) {
       const country = this.countries.find((c) => c.code === this.selectedCountryCode);
       if (country) {
         country.state = state;
         country.description = description;
-        country.photos = photos;
+        country.color = state === "visited" ? "blue" : "green";
       }
 
-      // Mettre à jour le style sur la carte
-      this.updateCountryStyle(this.selectedCountryCode, state);
+      this.updateCountryStyle(this.selectedCountryCode, state, country.color);
 
-      // Envoyer les modifications à l'API
-      this.updateCountryData(this.selectedCountryCode, { description, photos, state });
+      this.updateCountryData(this.selectedCountryCode, {
+        description,
+        state,
+        color: country.color,
+      });
 
       this.closeEditor();
     },
     async updateCountryData(countryCode, data) {
       try {
-        await axios.post("http://localhost:3000/api/country/update", {
-          user_id: this.userId,
-          country_code: countryCode,
+        console.log("Données envoyées :", {
+          userId: this.userId,
+          countryCode,
           ...data,
         });
+        const response = await axios.post("http://localhost:3001/api/countries/update", {
+          userId: this.userId,
+          countryCode,
+          ...data,
+        });
+        console.log("Réponse de l'API après mise à jour :", response.data);
       } catch (error) {
         console.error("Erreur lors de la mise à jour des données du pays :", error);
       }
     },
-    updateCountryStyle(countryCode, state) {
+    updateCountryStyle(countryCode, state, color) {
       this.geoJsonLayer.eachLayer((layer) => {
         if (layer.feature.properties.ISO_A3 === countryCode) {
-          layer.setStyle(this.getStyleForState(state));
+          layer.setStyle({
+            fillColor: color || this.getStyleForState(state).fillColor,
+            weight: 1,
+            color: "#555",
+            fillOpacity: 0.7,
+          });
 
-          // Mettre à jour les overlays
           if (state === "visited") {
             this.visitedLayer.addLayer(layer);
             this.toVisitLayer.removeLayer(layer);
@@ -220,5 +253,23 @@ export default {
 
 .controls {
   margin: 10px;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.spinner {
+  font-size: 1.5em;
+  color: #333;
 }
 </style>
