@@ -3,6 +3,10 @@
     <!-- Logo cliquable -->
     <img alt="Logo" src="../assets/PinMyMapLogo.png" class="logo" @click="goToHome" />
 
+    <!-- Leaderbord -->
+    <div class="Leaderbord">
+      <router-link to="/Leaderbord" style="color: #333; font-weight: bold;">Leaderbord 📊</router-link>
+    </div>
     <!-- Menu profil -->
     <div v-if="isLoggedIn" class="profile-menu">
       <img
@@ -22,6 +26,7 @@
 </template>
 
 <script>
+import router from "@/router";
 import eventBus from "../eventBus";
 
 export default {

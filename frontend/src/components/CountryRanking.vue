@@ -2,7 +2,6 @@
   <div class="p-6 bg-gray-100 min-h-screen">
     <h1 class="text-3xl font-bold text-center mb-6">Classement des Pays</h1>
 
-    <!-- Tabs pour les classements -->
     <div class="tabs mb-6">
       <button
         v-for="tab in tabs"
@@ -14,40 +13,32 @@
       </button>
     </div>
 
-    <!-- Contenu des classements -->
     <div class="leaderboard bg-white shadow rounded-lg p-4">
       <table class="w-full text-left border-collapse">
         <thead>
           <tr class="bg-gray-200">
-            <th class="p-3 text-sm">#</th>
-            <th class="p-3 text-sm">Pays</th>
-            <th class="p-3 text-sm" v-if="currentTab !== 'demanded'">
+            <th>#</th>
+            <th>Pays</th>
+            <th v-if="currentTab !== 'demanded'">
               {{ currentTab === 'topRated' ? 'Note 🌟' : 'Visites 🌍' }}
             </th>
-            <th class="p-3 text-sm" v-else>Demandes de Visite 📨</th>
-            <th class="p-3 text-sm">Actions</th>
+            <th v-if="currentTab === 'demanded'">Demandes 📨</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr
             v-for="(country, index) in filteredCountries"
             :key="country.id"
-            class="border-b hover:bg-gray-50 transition"
+            class="border-b hover:bg-gray-50"
           >
-            <td class="p-3 font-bold text-gray-700">{{ index + 1 }}</td>
-            <td class="p-3">{{ country.name }}</td>
-            <td class="p-3 font-semibold text-yellow-500" v-if="currentTab === 'topRated'">
-              🌟 {{ country.rating }}
-            </td>
-            <td class="p-3 font-semibold text-blue-500" v-if="currentTab === 'mostVisited'">
-              🌍 {{ country.visitsCount }} visites
-            </td>
-            <td class="p-3 font-semibold text-green-500" v-if="currentTab === 'demanded'">
-              📩 {{ country.visitRequests }} demandes
-            </td>
-            <td class="p-3">
+            <td>{{ index + 1 }}</td>
+            <td>{{ country.name }}</td>
+            <td v-if="currentTab === 'topRated'">{{ country.rating }}</td>
+            <td v-if="currentTab === 'mostVisited'">{{ country.visitsCount }}</td>
+            <td v-if="currentTab === 'demanded'">{{ country.visitRequests }}</td>
+            <td>
               <button
-                class="text-sm text-white bg-blue-500 px-3 py-1 rounded hover:bg-blue-600"
                 @click="viewCountryDetails(country)"
               >
                 Voir Détails
@@ -58,23 +49,12 @@
       </table>
     </div>
 
-    <!-- Modal pour les détails d'un pays -->
-    <div
-      v-if="selectedCountry"
-      class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center"
-    >
-      <div class="bg-white rounded p-6 w-11/12 max-w-2xl shadow-lg">
-        <h3 class="text-xl font-bold mb-4">{{ selectedCountry.name }}</h3>
-        <p class="mb-4">🌟 Note: {{ selectedCountry.rating }}</p>
-        <p class="mb-4">🌍 Nombre de visites: {{ selectedCountry.visitsCount }}</p>
-        <p class="mb-4">📩 Demandes de visite: {{ selectedCountry.visitRequests }}</p>
-
-        <button
-          class="mt-6 bg-red-500 text-white px-4 py-2 rounded"
-          @click="closeModal"
-        >
-          Fermer
-        </button>
+    <div v-if="selectedCountry" class="fixed inset-0 bg-black bg-opacity-50 flex">
+      <div class="bg-white p-6 rounded">
+        <h3>{{ selectedCountry.name }}</h3>
+        <p>Visites: {{ selectedCountry.visitsCount }}</p>
+        <p>Demandes: {{ selectedCountry.visitRequests }}</p>
+        <button @click="closeModal">Fermer</button>
       </div>
     </div>
   </div>
@@ -100,38 +80,26 @@ export default {
   },
   computed: {
     filteredCountries() {
-      if (this.currentTab === "mostVisited") {
-        return this.mostVisitedCountries;
-      } else if (this.currentTab === "topRated") {
-        return this.topRatedCountries;
-      } else if (this.currentTab === "demanded") {
-        return this.demandedCountries;
-      }
+      if (this.currentTab === "mostVisited") return this.mostVisitedCountries;
+      if (this.currentTab === "topRated") return this.topRatedCountries;
+      if (this.currentTab === "demanded") return this.demandedCountries;
       return [];
     },
   },
   methods: {
     async fetchData() {
-      try {
-        const [topRated, mostVisited, demanded] = await Promise.all([
-          axios.get("/api/countries/top-rated"),
-          axios.get("/api/countries/most-visited"),
-          axios.get("/api/countries/demanded"),
-        ]);
-        this.topRatedCountries = topRated.data;
-        this.mostVisitedCountries = mostVisited.data;
-        this.demandedCountries = demanded.data;
-      } catch (error) {
-        console.error("Erreur lors de la récupération des données:", error);
-      }
+      const [mostVisited, topRated, demanded] = await Promise.all([
+        axios.get("http://localhost:3001/api/most-visited"),
+        axios.get("http://localhost:3001/api/top-rated"),
+        axios.get("http://localhost:3001/api/demanded"),
+      ]);
+      this.mostVisitedCountries = mostVisited.data;
+      this.topRatedCountries = topRated.data;
+      this.demandedCountries = demanded.data;
     },
     async viewCountryDetails(country) {
-      try {
-        const response = await axios.get(`/api/countries/${country.id}/details`);
-        this.selectedCountry = response.data;
-      } catch (error) {
-        console.error("Erreur lors de la récupération des détails du pays:", error);
-      }
+      const response = await axios.get(`http://localhost:3001/api/countries/${country.id}/details`);
+      this.selectedCountry = response.data;
     },
     closeModal() {
       this.selectedCountry = null;
@@ -142,6 +110,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 /* Style des onglets */
