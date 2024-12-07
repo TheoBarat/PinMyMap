@@ -13,6 +13,8 @@ model User {
   password  String
   createdAt DateTime @default(now())
   visits    Visit[]  // Relation avec les visites de pays
+  firstName String
+  lastName  String
 }
 
 model Country {
