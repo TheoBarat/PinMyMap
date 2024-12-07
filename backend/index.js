@@ -116,19 +116,25 @@ app.get('/api/countries/:userId', async (req, res) => {
 
 // Ajouter ou mettre à jour une visite
 app.post('/api/countries/update', async (req, res) => {
-  const { userId, countryCode, countryName, status, description, color } = req.body;
+  const { userId, countryCode, countryName, state, description, color } = req.body;
 
   try {
+    // Vérifiez que 'state' est fourni
+    if (!state) {
+      return res.status(400).json({ message: "Le champ 'state' est requis." });
+    }
+
+    // Convertissez 'state' en 'status' pour correspondre au modèle Prisma
+    const status = state;
+
     let country = await prisma.country.findUnique({ where: { code: countryCode } });
     if (!country) {
-      // Utilisez `countryName` pour enregistrer le vrai nom du pays
       country = await prisma.country.create({
-        data: { code: countryCode, name: countryName },
+        data: { code: countryCode, name: countryName || countryCode },
       });
     }
 
     if (status === "not_selected") {
-      // Supprimez la visite si "non sélectionné"
       await prisma.visit.deleteMany({
         where: {
           userId: parseInt(userId),
@@ -138,7 +144,6 @@ app.post('/api/countries/update', async (req, res) => {
       return res.json({ message: "Visite supprimée avec succès" });
     }
 
-    // Sinon, mettez à jour ou insérez
     const visit = await prisma.visit.upsert({
       where: {
         userId_countryId: {
@@ -146,8 +151,8 @@ app.post('/api/countries/update', async (req, res) => {
           countryId: country.id,
         },
       },
-      update: { status, description, color },
-      create: { userId: parseInt(userId), countryId: country.id, status, description, color },
+      update: { status, description: description || "", color: color || "transparent" },
+      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent" },
     });
 
     res.json({ message: 'Visite mise à jour avec succès', visit });
@@ -156,6 +161,7 @@ app.post('/api/countries/update', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la mise à jour du pays', details: error.message });
   }
 });
+
 
 // Endpoint : Les pays les plus visités
 app.get('/api/most-visited', async (req, res) => {
