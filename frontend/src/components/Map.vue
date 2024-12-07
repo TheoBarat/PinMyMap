@@ -249,9 +249,6 @@ export default {
           } else if (state === "to_visit") {
             this.toVisitLayer.addLayer(layer);
             this.visitedLayer.removeLayer(layer);
-          } else {
-            this.visitedLayer.removeLayer(layer);
-            this.toVisitLayer.removeLayer(layer);
           }
         }
       });

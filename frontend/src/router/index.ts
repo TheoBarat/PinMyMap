@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import HomeView from '../views/MapView.vue';
 import Login from '../components/Login.vue';
+import Leaderbord from '../components/CountryRanking.vue';
 
 const routes = [
   {
@@ -12,6 +13,11 @@ const routes = [
     path: '/home',
     name: 'home',
     component: HomeView,
+  },
+  {
+    path: '/leaderbord',
+    name: 'leaderbord',
+    component: Leaderbord,
   },
   {
     path: '/',
