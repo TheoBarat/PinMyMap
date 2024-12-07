@@ -6,15 +6,19 @@ const bcrypt = require('bcryptjs');
 const app = express();
 const prisma = new PrismaClient();
 
+/**
+ * Configuration et middlewares
+ */
 app.use(cors({
   origin: 'http://localhost:5173', // URL du frontend
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-// Middleware pour analyser le corps des requêtes JSON
 app.use(express.json());
 
-// Middleware pour valider les données de création d'utilisateur
+/**
+ * Middlewares personnalisés
+ */
 const validateUserCreation = (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -23,7 +27,11 @@ const validateUserCreation = (req, res, next) => {
   next();
 };
 
-// Endpoint pour récupérer les utilisateurs
+/**
+ * Routes pour les utilisateurs
+ */
+
+// Récupérer tous les utilisateurs
 app.get('/users', async (req, res) => {
   try {
     const users = await prisma.user.findMany();
@@ -33,21 +41,17 @@ app.get('/users', async (req, res) => {
   }
 });
 
-// Endpoint pour créer un utilisateur
+// Créer un utilisateur
 app.post('/users', validateUserCreation, async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Vérifier si l'utilisateur existe déjà
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Hash du mot de passe
     const hashedPassword = bcrypt.hashSync(password, 8);
-
-    // Création de l'utilisateur
     const newUser = await prisma.user.create({
       data: { email, password: hashedPassword },
     });
@@ -59,20 +63,22 @@ app.post('/users', validateUserCreation, async (req, res) => {
   }
 });
 
-// Endpoint pour le login
+// Login utilisateur
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
 
-    // Vérification des credentials
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Génération du token JWT
-    const token = jwt.sign({ email: user.email }, "your-secret-key", { expiresIn: "1h" });
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      "your-secret-key",
+      { expiresIn: "1h" }
+    );
 
     res.status(200).json({ message: "Login successful", token });
   } catch (error) {
@@ -81,6 +87,72 @@ app.post('/login', async (req, res) => {
   }
 });
 
+/**
+ * Routes pour les pays et visites
+ */
+
+// Récupérer les visites d’un utilisateur
+app.get('/api/countries/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const visits = await prisma.visit.findMany({
+      where: { userId: parseInt(userId) },
+      include: { country: true },
+    });
+
+    const data = visits.map((visit) => ({
+      countryCode: visit.country.code,
+      countryName: visit.country.name,
+      state: visit.status,
+      description: visit.description,
+      color: visit.color,
+    }));
+
+    res.json(data);
+  } catch (error) {
+    console.error('Erreur lors de la récupération des pays :', error);
+    res.status(500).json({ error: 'Erreur lors de la récupération des pays' });
+  }
+});
+
+// Ajouter ou mettre à jour une visite
+app.post('/api/countries/update', async (req, res) => {
+  const { userId, countryCode, state, description, color } = req.body;
+
+  // Renomme `state` en `status` pour correspondre au modèle Prisma
+  const status = state;
+
+  try {
+    console.log("Requête reçue :", { userId, countryCode, status, description, color });
+
+    let country = await prisma.country.findUnique({ where: { code: countryCode } });
+    if (!country) {
+      country = await prisma.country.create({
+        data: { code: countryCode, name: countryCode },
+      });
+    }
+
+    const visit = await prisma.visit.upsert({
+      where: {
+        userId_countryId: {
+          userId: parseInt(userId),
+          countryId: country.id,
+        },
+      },
+      update: { status, description, color },
+      create: { userId: parseInt(userId), countryId: country.id, status, description, color },
+    });
+
+    res.json({ message: 'Visite mise à jour avec succès', visit });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du pays :', error);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du pays', details: error.message });
+  }
+});
+
+/**
+ * Lancement du serveur
+ */
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Serveur backend démarré sur le port ${PORT}`);

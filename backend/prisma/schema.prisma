@@ -32,16 +32,8 @@ model Visit {
   countryId   Int       // Référence vers le pays
   user        User      @relation(fields: [userId], references: [id])
   country     Country   @relation(fields: [countryId], references: [id])
-  photos      Photo[]   // Relation avec les photos de la visite
   color       String?   // Couleur associée au statut
-}
-
-model Photo {
-  id          Int       @id @default(autoincrement())
-  url         String    // URL de la photo
-  visitId     Int       // Référence vers la visite
-  visit       Visit     @relation(fields: [visitId], references: [id])
-  createdAt   DateTime  @default(now())
+  @@unique([userId, countryId]) // Définit une contrainte unique composite
 }
 
 model StatusColor {
