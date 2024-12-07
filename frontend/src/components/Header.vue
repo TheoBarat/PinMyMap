@@ -11,7 +11,9 @@
         class="avatar"
         @click="toggleDropdown"
       />
-      <span class="user-email" @click="toggleDropdown">{{ user.email || "Utilisateur" }}</span>
+      <span class="user-name" @click="toggleDropdown">
+  {{ user.firstName || "Utilisateur" }} {{ user.lastName || "" }}
+</span>
 
       <!-- Menu déroulant pour se déconnecter -->
       <div v-if="showDropdown" class="dropdown-menu">
@@ -25,42 +27,58 @@
 import eventBus from "../eventBus";
 
 export default {
+  
   name: "Header",
   data() {
-    return {
-      isLoggedIn: false, // Indique si l'utilisateur est connecté
-      showDropdown: false, // Contrôle l'affichage du menu déroulant
-      user: { email: "" },
-    };
-  },
+  return {
+    isLoggedIn: false, // Indique si l'utilisateur est connecté
+    showDropdown: false, // Contrôle l'affichage du menu déroulant
+    user: {
+      firstName: "",
+      lastName: "",
+    },
+  };
+},
+
   mounted() {
     this.checkAuth(); // Vérifie l'état de connexion
     eventBus.$on("auth-changed", (status) => {
-      console.log("Événement auth-changed capté : ", status);
-      this.isLoggedIn = status;
-      this.showDropdown = false; // Assure que le menu déroulant est fermé
-      if (status) this.loadUser();
-    });
+  console.log("Événement auth-changed capté : ", status);
+  this.isLoggedIn = status;
+  this.showDropdown = false; // Assure que le menu déroulant est fermé
+  if (status) {
+    this.loadUser(); // Recharge les données utilisateur
+  }
+});
+
   },
+  
   methods: {
     checkAuth() {
       const token = localStorage.getItem("token");
       this.isLoggedIn = !!token;
       this.showDropdown = false; // Assure que le menu est fermé au chargement
-      if (this.isLoggedIn) this.loadUser();
-    },
-    loadUser() {
+      if (this.isLoggedIn) {
+        this.loadUser(); // Recharge les informations utilisateur si connecté
+      }
+    }
+,
+    async loadUser() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const payload = JSON.parse(atob(token.split(".")[1]));
-          this.user.email = payload.email || "Utilisateur";
+          const payload = JSON.parse(atob(token.split(".")[1])); // Décoder le payload JWT
+          console.log("Payload JWT :", payload); // Affiche les données pour debug
+          this.user.firstName = payload.firstName || "Utilisateur";
+          this.user.lastName = payload.lastName || "";
         } catch (error) {
           console.error("Erreur lors du décodage du token :", error);
-          this.logout();
+          this.logout(); // Déconnecte si le token est invalide
         }
       }
     },
+
+    
     logout() {
       localStorage.removeItem("token");
       this.isLoggedIn = false;
