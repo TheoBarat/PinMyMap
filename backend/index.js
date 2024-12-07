@@ -172,7 +172,8 @@ app.get('/api/most-visited', async (req, res) => {
       name: country.name,
       code: country.code,
       visitsCount: country.visits.length,
-    }));
+    }))
+    .sort((a, b) => b.visitsCount - a.visitsCount); // Tri décroissant par nombre de visites
 
     res.status(200).json(result);
   } catch (error) {
@@ -193,7 +194,8 @@ app.get("/api/top-rated", async (req, res) => {
       id: country.id,
       name: country.name,
       rating: Math.random() * 5, // Exemple d'une note aléatoire
-    }));
+    }))
+    .sort((a, b) => b.rating - a.rating); // Tri décroissant par note
 
     res.status(200).json(response);
   } catch (error) {
@@ -207,7 +209,7 @@ app.get("/api/demanded", async (req, res) => {
     const demanded = await prisma.country.findMany({
       include: {
         visits: {
-          where: { status: "wishlist" },
+          where: { status: "to_visit" },
         },
       },
       orderBy: {
@@ -220,7 +222,8 @@ app.get("/api/demanded", async (req, res) => {
       id: country.id,
       name: country.name,
       visitRequests: country.visits.length,
-    }));
+    }))
+    .sort((a, b) => b.visitRequests - a.visitRequests);
 
     res.status(200).json(response);
   } catch (error) {
