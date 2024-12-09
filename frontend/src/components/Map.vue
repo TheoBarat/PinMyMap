@@ -64,7 +64,7 @@ export default {
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
-        this.userId = payload.userId;
+        this.userId = payload.id;
 
         // Charger l'état sauvegardé depuis le localStorage
         const savedMode = localStorage.getItem("mapMode");
@@ -151,6 +151,7 @@ export default {
     },
     async fetchCountryStates(userId) {
       try {
+        console.log(userId);
         const response = await axios.get(`http://localhost:3001/api/countries/${userId}`);
         const data = response.data;
 
@@ -196,6 +197,7 @@ export default {
     },
     handleCountrySave({ description, state }) {
       const country = this.countries.find((c) => c.code === this.selectedCountryCode);
+      
       if (country) {
         country.state = state;
         country.description = description;

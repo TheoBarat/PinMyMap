@@ -75,12 +75,14 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    console.log(user.firstName);
+
     const token = jwt.sign(
       {
         id: user.id,
         email: user.email,
-        firstName: user.firstName, // Ajouter le prénom
-        lastName: user.lastName,   // Ajouter le nom
+        firstName: user.firstName, 
+        lastName: user.lastName,   
       },
       "your-secret-key",
       { expiresIn: "1h" }

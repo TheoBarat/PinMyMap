@@ -1,27 +1,41 @@
 <template>
+  <meta charset="UTF-8" />
   <nav class="header">
     <!-- Logo cliquable -->
     <img alt="Logo" src="../assets/PinMyMapLogo.png" class="logo" @click="goToHome" />
 
-    <!-- Leaderbord -->
-    <div class="Leaderbord">
-      <router-link to="/Leaderbord" style="color: #333; font-weight: bold;">Leaderbord 📊</router-link>
-    </div>
-    <!-- Menu profil -->
-    <div v-if="isLoggedIn" class="profile-menu">
-      <img
-        alt="Avatar"
-        src="../assets/avatar-placeholder.png"
-        class="avatar"
-        @click="toggleDropdown"
-      />
-      <span class="user-name" @click="toggleDropdown">
-  {{ user.firstName || "Utilisateur" }} {{ user.lastName || "" }}
-</span>
+    <div class="menu" v-if="isLoggedIn">
 
-      <!-- Menu déroulant pour se déconnecter -->
-      <div v-if="showDropdown" class="dropdown-menu">
-        <button @click="logout">Se déconnecter</button>
+      <!-- Map -->
+      <div class="map">
+        <router-link to="/home" custom v-slot="{ navigate }">
+          <span @click="goToHome">Map 🗺️</span>
+        </router-link>
+      </div>
+
+      <!-- Leaderbord -->
+      <div class="leaderboard">
+        <router-link to="/leaderboard" custom v-slot="{ navigate }">
+          <span @click="navigate">Leaderboard 📊</span>
+        </router-link>
+      </div>
+
+      <!-- Menu profil -->
+      <div class="profile-menu">
+        <img
+          alt="Avatar"
+          src="../assets/avatar-placeholder.png"
+          class="avatar"
+          @click="toggleDropdown"
+        />
+        <span class="user-name" @click="toggleDropdown">
+          {{ user.firstName || "Utilisateur" }} {{ user.lastName || "" }}
+        </span>
+
+        <!-- Menu déroulant pour se déconnecter -->
+        <div v-if="showDropdown" class="dropdown-menu">
+          <button @click="logout">Se déconnecter</button>
+        </div>
       </div>
     </div>
   </nav>
@@ -66,24 +80,30 @@ export default {
       if (this.isLoggedIn) {
         this.loadUser(); // Recharge les informations utilisateur si connecté
       }
-    }
-,
+    },
     async loadUser() {
       const token = localStorage.getItem("token");
       if (token) {
         try {
-          const payload = JSON.parse(atob(token.split(".")[1])); // Décoder le payload JWT
-          console.log("Payload JWT :", payload); // Affiche les données pour debug
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+              .join("")
+          );
+
+          const payload = JSON.parse(jsonPayload);
+          console.log("Payload JWT :", payload); // Vérifiez les données ici
           this.user.firstName = payload.firstName || "Utilisateur";
-          this.user.lastName = payload.lastName || "";
+          this.user.lastName = (payload.lastName || "").toUpperCase();
         } catch (error) {
           console.error("Erreur lors du décodage du token :", error);
-          this.logout(); // Déconnecte si le token est invalide
+          this.logout();
         }
       }
     },
-
-    
     logout() {
       localStorage.removeItem("token");
       this.isLoggedIn = false;
@@ -122,6 +142,27 @@ export default {
   cursor: pointer;
 }
 
+.menu {
+  display: flex;
+  align-items: center;
+}
+
+.map {
+  color: black;
+  margin-right: 25px;
+  font-weight: bold;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.leaderboard {
+  color: black;
+  font-weight: bold;
+  margin-right: 25px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .profile-menu {
   display: flex;
   align-items: center;
@@ -136,7 +177,7 @@ export default {
   margin-right: 10px;
 }
 
-.user-email {
+.user-name {
   font-weight: bold;
   color: #333;
 }

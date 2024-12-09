@@ -15,8 +15,8 @@ const routes = [
     component: HomeView,
   },
   {
-    path: '/leaderbord',
-    name: 'leaderbord',
+    path: '/leaderboard',
+    name: 'leaderboard',
     component: Leaderbord,
   },
   {
