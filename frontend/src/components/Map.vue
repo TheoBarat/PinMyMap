@@ -13,6 +13,7 @@
       :countryName="selectedCountryName"
       :description="selectedCountryDescription"
       :state="selectedCountryState"
+      :score="selectedCountryScore"
       @close="closeView"
     />
     <CountryEditor
@@ -21,6 +22,7 @@
       :countryName="selectedCountryName"
       :initialDescription="selectedCountryDescription"
       :initialState="selectedCountryState"
+      :initialScore="selectedCountryScore"
       @save="handleCountrySave"
       @close="closeEditor"
     />
@@ -56,6 +58,7 @@ export default {
       selectedCountryDescription: "",
       selectedCountryState: "",
       selectedCountryCode: "",
+      selectedCountryScore: 0,
       loading: true,
     };
   },
@@ -147,6 +150,7 @@ export default {
         state: "not_selected", // Défini par défaut comme "non sélectionné"
         description: "",
         color: "transparent",
+        score: 0,
       }));
     },
     async fetchCountryStates(userId) {
@@ -161,6 +165,7 @@ export default {
             existingCountry.state = country.state;
             existingCountry.description = country.description;
             existingCountry.color = country.color;
+            existingCountry.score = country.score;
           }
           this.updateCountryStyle(country.countryCode, country.state, country.color);
         });
@@ -181,6 +186,7 @@ export default {
       this.selectedCountryCode = country.code;
       this.selectedCountryDescription = country.description;
       this.selectedCountryState = country.state;
+      this.selectedCountryScore = country.score;
       this.showEditor = true;
     },
     closeEditor() {
@@ -190,18 +196,20 @@ export default {
       this.selectedCountryName = country.name;
       this.selectedCountryDescription = country.description;
       this.selectedCountryState = country.state;
+      this.selectedCountryScore = country.score;
       this.showCountryView = true;
     },
     closeView() {
       this.showCountryView = false;
     },
-    handleCountrySave({ description, state }) {
+    handleCountrySave({ description, state, score }) {
       const country = this.countries.find((c) => c.code === this.selectedCountryCode);
       
       if (country) {
         country.state = state;
         country.description = description;
         country.color = state === "visited" ? "blue" : state === "to_visit" ? "green" : "transparent";
+        country.score = score;
       }
 
       // Envoyer les modifications au backend
@@ -209,6 +217,7 @@ export default {
         description,
         state,
         color: country.color,
+        score,
       }).then(() => {
         // Sauvegarder le mode actuel dans le localStorage avant le rechargement
         localStorage.setItem("mapMode", this.isEditMode ? "edit" : "view");

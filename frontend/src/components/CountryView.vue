@@ -6,6 +6,9 @@
         <p>{{ description }}</p>
       </div>
       <div>
+        <p><strong>Note :</strong> {{ score }} 🌟</p>
+      </div>
+      <div>
         <p><strong>État :</strong> {{ state === 'visited' ? 'Visité' : 'À visiter' }}</p>
       </div>
       <button @click="$emit('close')">Fermer</button>
@@ -18,6 +21,7 @@
       isVisible: Boolean,
       countryName: String,
       description: String,
+      score: Number,
       state: String,
     },
   };

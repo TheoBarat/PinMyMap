@@ -34,9 +34,9 @@
           >
             <td>{{ index + 1 }}</td>
             <td>{{ country.name }}</td>
-            <td v-if="currentTab === 'topRated'">{{ country.rating }}</td>
-            <td v-if="currentTab === 'mostVisited'">{{ country.visitsCount }}</td>
-            <td v-if="currentTab === 'demanded'">{{ country.visitRequests }}</td>
+            <td v-if="currentTab === 'topRated'"> {{ country.averageScore }} </td>
+            <td v-if="currentTab === 'mostVisited'"> {{ country.visitsCount }} </td>
+            <td v-if="currentTab === 'demanded'"> {{ country.visitRequests }} </td>
             <td>
               <button
                 class="details-button"
@@ -220,18 +220,18 @@ export default {
 /* Conteneur principal avec image de fond */
 .leaderboard-container {
   padding: 20px;
-  background-image: url('../assets/avatar-placeholder.png'); /* Remplace par le chemin de ton image */
+  background-image: url('../assets/carte.png'); /* Remplace par le chemin de ton image */
   background-size: cover; /* Assure que l'image couvre tout l'espace */
   background-position: center; /* Centre l'image */
   background-attachment: fixed; /* L'image reste fixe lors du défilement */
-  min-height: 100vh;
+  min-height: 90vh;
   font-family: Arial, sans-serif;
   color: #fff; /* Texte en blanc pour une bonne lisibilité */
 }
 
 /* Ajout d'un fond semi-transparent pour améliorer la lisibilité */
 .leaderboard {
-  background-color: rgba(255, 255, 255, 0.9); /* Fond blanc avec transparence */
+  background-color: rgba(255, 255, 255, 0.98); /* Fond blanc avec transparence */
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   padding: 20px;

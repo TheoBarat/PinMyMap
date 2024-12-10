@@ -35,6 +35,7 @@ model Visit {
   user        User      @relation(fields: [userId], references: [id])
   country     Country   @relation(fields: [countryId], references: [id])
   color       String?   // Couleur associée au statut
+  score       Float      // Score donné par l'utilisateur du pays
   @@unique([userId, countryId]) // Définit une contrainte unique composite
 }
 

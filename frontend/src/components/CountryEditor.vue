@@ -11,6 +11,11 @@
         style="width: 100%; margin-bottom: 10px;"
       ></textarea>
     </div>
+    <RatingScore
+      v-model="score"
+      :score="score"
+      @update:score="updateScore"
+    />
     <div>
       <label>État du pays :</label><br />
       <input
@@ -41,25 +46,40 @@
 </template>
 
 <script>
+import RatingScore from "./RatingScore.vue";
+
 export default {
+  components: {
+    RatingScore,
+  },
   props: {
     isVisible: Boolean,
     countryName: String,
     initialDescription: String,
     initialState: String,
+    initialScore: Number,
   },
   data() {
     return {
       description: this.initialDescription || "",
       state: this.initialState || "not_selected",
+      score: this.initialScore,
     };
   },
   methods: {
+    mounted() {
+      this.currentScore = this.score;
+    },
     saveChanges() {
       this.$emit("save", {
         description: this.description,
         state: this.state,
+        score: this.score,
       });
+    },
+    updateScore(score) {
+      this.score = score;
+      console.log("Newww score:", score);
     },
   },
 };

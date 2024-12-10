@@ -8,7 +8,7 @@
       <div v-if="comments.length" class="comments-list">
         <div v-for="comment in comments" :key="comment.user.id" class="comment-card">
           <p class="comment-author">{{ comment.user.email }}</p>
-          <p class="comment-rating">Note : {{ comment.rating }} 🌟</p>
+          <p class="comment-rating">Note : {{ comment.score }} 🌟</p>
           <p class="comment-description">{{ comment.description }}</p>
         </div>
       </div>

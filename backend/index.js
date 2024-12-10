@@ -114,6 +114,7 @@ app.get('/api/countries/:userId', async (req, res) => {
       state: visit.status,
       description: visit.description,
       color: visit.color,
+      score: visit.score,
     }));
 
     res.json(data);
@@ -140,7 +141,7 @@ app.get("/me", (req, res) => {
 
 // Ajouter ou mettre à jour une visite
 app.post('/api/countries/update', async (req, res) => {
-  const { userId, countryCode, countryName, state, description, color } = req.body;
+  const { userId, countryCode, countryName, state, description, color, score } = req.body;
 
   try {
     // Vérifiez que 'state' est fourni
@@ -175,8 +176,8 @@ app.post('/api/countries/update', async (req, res) => {
           countryId: country.id,
         },
       },
-      update: { status, description: description || "", color: color || "transparent" },
-      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent" },
+      update: { status, description: description || "", color: color || "transparent", score: score || 0 },
+      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent", score: score || 0 },
     });
 
     res.json({ message: 'Visite mise à jour avec succès', visit });
@@ -219,23 +220,40 @@ app.get('/api/most-visited', async (req, res) => {
   }
 });
 
-// Endpoint : Les pays les mieux notés (exemple basé sur une note fictive)
+// Endpoint : Les pays les mieux notés
 app.get("/api/top-rated", async (req, res) => {
   try {
-    const topRated = await prisma.country.findMany({
-      orderBy: { population: "desc" }, // Exemple : classez par population
-      take: 10,
+    // Récupérer les pays avec les scores des visites
+    const countriesWithScores = await prisma.country.findMany({
+      include: {
+        visits: true, // Inclure toutes les visites associées
+      },
     });
 
-    const response = topRated.map((country) => ({
-      id: country.id,
-      name: country.name,
-      rating: Math.random() * 5, // Exemple d'une note aléatoire
-    }))
-    .sort((a, b) => b.rating - a.rating); // Tri décroissant par note
+    // Calculer la moyenne des scores pour chaque pays
+    const ratedCountries = countriesWithScores.map((country) => {
+      const scores = country.visits.map((visit) => visit.score);
+      const averageScore = scores.length > 0
+        ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+        : 0; // Si aucun score, la moyenne est 0
 
-    res.status(200).json(response);
+      return {
+        id: country.id,
+        name: country.name,
+        code: country.code,
+        averageScore: parseFloat(averageScore.toFixed(2)), // Limiter la moyenne à 2 décimales
+      };
+    });
+
+    // Trier les pays par note moyenne décroissante
+    const topRated = ratedCountries
+      .filter((country) => country.averageScore > 0) // Exclure les pays sans score
+      .sort((a, b) => b.averageScore - a.averageScore)
+      .slice(0, 10); // Limiter aux 10 meilleurs pays
+
+    res.status(200).json(topRated);
   } catch (error) {
+    console.error("Erreur lors de la récupération des pays les mieux notés:", error);
     res.status(500).json({ error: "Erreur serveur." });
   }
 });
@@ -290,6 +308,13 @@ app.get("/api/pays/:id/details", async (req, res) => {
     const visitedCount = country.visits.filter((v) => v.status === "visited").length;
     const wishlistCount = country.visits.filter((v) => v.status === "wishlist").length;
 
+    // Calcul de la note moyenne
+    const scores = country.visits.map((visit) => visit.score);
+    const averageRating =
+      scores.length > 0
+        ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+        : 0;
+    
     // Filtrer les visites avec des descriptions (utilisées comme commentaires)
     const comments = country.visits
       .filter((v) => v.description) // Garde uniquement les visites avec une description
@@ -300,6 +325,7 @@ app.get("/api/pays/:id/details", async (req, res) => {
         },
         description: visit.description,
         status: visit.status,
+        score: visit.score,
       }));
 
     res.status(200).json({
@@ -307,6 +333,7 @@ app.get("/api/pays/:id/details", async (req, res) => {
       name: country.name,
       visitsCount: visitedCount,
       visitRequests: wishlistCount,
+      averageRating: parseFloat(averageRating.toFixed(2)),
       comments: comments,
     });
   } catch (error) {
