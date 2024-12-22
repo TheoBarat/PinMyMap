@@ -1,63 +1,89 @@
 <template>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
-    />
-    <div class="auth-container">
-      <!-- Couche pour le flou de l'image de fond -->
-      <div class="background-blur"></div>
-      <!-- Couche pour améliorer la lisibilité avec un overlay -->
-      <div class="auth-overlay"></div>
-      <div class="auth-card">
-        <h1>{{ isLoginMode ? "Login" : "Sign Up" }}</h1>
-        <form @submit.prevent="isLoginMode ? handleLogin() : handleSignup()">
-          <!-- Email -->
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" v-model="email" required />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+  />
+  <div class="auth-container">
+    <!-- Couche pour le flou de l'image de fond -->
+    <div class="background-blur"></div>
+    <!-- Couche pour améliorer la lisibilité avec un overlay -->
+    <div class="auth-overlay"></div>
+    <div class="auth-card">
+      <h1>{{ isLoginMode ? "Login" : "Sign Up" }}</h1>
+      <form @submit.prevent="isLoginMode ? handleLogin() : handleSignup()">
+        <!-- Email -->
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" v-model="email" required />
+        </div>
+
+        <!-- Password -->
+        <div class="form-group password-group">
+          <label for="password">Password</label>
+          <div class="password-container">
+          <input
+            :type="showPassword ? 'text' : 'password'"
+            id="password"
+            v-model="password"
+            @input="handlePasswordInput"
+            required
+          />
+          <span class="toggle-password" @click="togglePasswordVisibility">
+            <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+          </span>
+        </div>
+          <!-- Barre de progression -->
+          <div
+            v-if="!isLoginMode && isTypingPassword"
+            class="password-strength-bar"
+          >
+            <div
+              :style="{
+                width: passwordStrength.strength === 'Weak' ? '33%' :
+                      passwordStrength.strength === 'Medium' ? '66%' : '100%',
+                backgroundColor: passwordStrength.color,
+              }"
+            ></div>
+          
           </div>
-  
-          <!-- Password -->
-          <div class="form-group password-group">
-            <label for="password">Password</label>
-            <input
-              :type="showPassword ? 'text' : 'password'"
-              id="password"
-              v-model="password"
-              required
-            />
-            <span class="toggle-password" @click="togglePasswordVisibility">
-              <i :class="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
+
+          <!-- Indicateur de force -->
+          <div class="password-strength" v-if="!isLoginMode && isTypingPassword">
+            <span :style="{ color: passwordStrength.color }">
+              {{ passwordStrength.strength }}
             </span>
           </div>
-  
-          <!-- First Name and Last Name (Sign Up only) -->
-          <div v-if="!isLoginMode" class="form-group">
-            <label for="firstName">First Name</label>
-            <input type="text" id="firstName" v-model="firstName" required />
-          </div>
-          <div v-if="!isLoginMode" class="form-group">
-            <label for="lastName">Last Name</label>
-            <input type="text" id="lastName" v-model="lastName" required />
-          </div>
-  
-          <!-- Error/Success Message -->
-          <div v-if="message" :class="messageType" class="message">
-            {{ message }}
-          </div>
-  
-          <!-- Submit Button -->
-          <button type="submit" class="primary-btn">
-            {{ isLoginMode ? "Login" : "Sign Up" }}
-          </button>
-        </form>
-        <!-- Toggle Login/Sign Up -->
-        <button @click="toggleMode" class="secondary-btn">
-          {{ isLoginMode ? "Create an account" : "Already have an account?" }}
+        </div>
+
+        <!-- First Name and Last Name (Sign Up only) -->
+        <div v-if="!isLoginMode" class="form-group">
+          <label for="firstName">First Name</label>
+          <input type="text" id="firstName" v-model="firstName" required />
+        </div>
+        <div v-if="!isLoginMode" class="form-group">
+          <label for="lastName">Last Name</label>
+          <input type="text" id="lastName" v-model="lastName" required />
+        </div>
+
+        <!-- Error/Success Message -->
+        <div v-if="message" :class="messageType" class="message">
+          {{ message }}
+        </div>
+
+        <!-- Submit Button -->
+        <button type="submit" class="primary-btn">
+          {{ isLoginMode ? "Login" : "Sign Up" }}
         </button>
-      </div>
+      </form>
+
+      <!-- Toggle Login/Sign Up -->
+      <button @click="toggleMode" class="secondary-btn">
+        {{ isLoginMode ? "Create an account" : "Already have an account?" }}
+      </button>
     </div>
-  </template>
+  </div>
+</template>
+
   
   
   <script>
@@ -74,8 +100,10 @@
         showPassword: false, // Contrôle de la visibilité du mot de passe
         message: "", // Message d'erreur ou de succès
         messageType: "", // Type de message (erreur ou succès)
+        isTypingPassword: false, // Indique si l'utilisateur tape un mot de passe
       };
     },
+
     methods: {
       async handleLogin() {
         try {
@@ -138,8 +166,44 @@
       togglePasswordVisibility() {
         this.showPassword = !this.showPassword; // Basculer la visibilité du mot de passe
       },
+      evaluatePasswordStrength(password) {
+        if (!password) {
+          return { strength: "Weak", color: "red" };
+        }
+
+        let strength = 0;
+
+        // Ajout d'une condition pour un minimum de 6 caractères
+        if (password.length >= 6) strength++; 
+        if (password.length >= 8) strength++; // Bonus pour longueur >= 8
+        if (/[A-Z]/.test(password)) strength++; // Lettre majuscule
+        if (/[a-z]/.test(password)) strength++; // Lettre minuscule
+        if (/[0-9]/.test(password)) strength++; // Chiffre
+        if (/[^A-Za-z0-9]/.test(password)) strength++; // Caractère spécial
+
+        // Adaptation des conditions pour "Medium"
+        if (strength <= 4) return { strength: "Weak", color: "red" }; 
+        if (strength == 5 && password.length >= 6) return { strength: "Medium", color: "orange" };
+        //if (strength >= 5 && password.length >= 8) return { strength: "Strong", color: "green" };
+        
+        // Par défaut, si aucune condition spécifique n'est remplie
+        return { strength: "Strong", color: "green" };
+      },
+
+      handlePasswordInput() {
+          this.isTypingPassword = this.password.length > 0;
+        },
+      },
+
+    computed: {
+      passwordStrength() {
+        return this.evaluatePasswordStrength(this.password);
+      },
     },
+
   };
+
+  
   </script>
 
 <style scoped>
@@ -221,7 +285,7 @@ input:focus {
 .password-group .toggle-password {
   position: absolute;
   right: 10px;
-  top: 70%;
+  top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
   color: #888;
@@ -285,4 +349,51 @@ button {
   color: #721c24;
   border: 1px solid #f5c6cb;
 }
+
+.password-strength {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  font-weight: bold;
+}
+
+.password-strength-bar {
+  background: #f0f0f0;
+  height: 6px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.password-strength-bar div {
+  height: 100%;
+  transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
+}
+
+/* Container pour l'input et l'œil */
+.password-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* Style pour l'input */
+.password-container input {
+  width: 100%;
+  padding-right: 2.5rem; /* Laisser de la place pour l'œil */
+}
+
+/* Style pour l'œil */
+.toggle-password {
+  position: absolute;
+  right: 10px; /* Distance par rapport au bord droit */
+  cursor: pointer;
+  color: #888;
+  font-size: 1rem; /* Ajuster la taille de l'icône */
+}
+
+.toggle-password:hover {
+  color: #007bff;
+}
+
 </style>
