@@ -35,7 +35,8 @@ model Visit {
   user        User      @relation(fields: [userId], references: [id])
   country     Country   @relation(fields: [countryId], references: [id])
   color       String?   // Couleur associée au statut
-  score       Float      // Score donné par l'utilisateur du pays
+  score       Float     // Score donné par l'utilisateur du pays
+  photos      Photo[]   // Relation avec les photos associées
   @@unique([userId, countryId]) // Définit une contrainte unique composite
 }
 
@@ -43,4 +44,12 @@ model StatusColor {
   id     Int    @id @default(autoincrement())
   status String @unique // Statut ("visited", "wishlist", etc.)
   color  String         // Couleur associée (en hexadécimal, e.g., #FF0000)
+}
+
+model Photo {
+  id        Int      @id @default(autoincrement())
+  url       String   // Lien ou chemin de l'image
+  createdAt DateTime @default(now()) // Date d'ajout de la photo
+  visitId   Int      // Référence vers une visite
+  visit     Visit    @relation(fields: [visitId], references: [id])
 }

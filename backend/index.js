@@ -3,8 +3,12 @@ const cors = require('cors');
 const { PrismaClient } = require('@prisma/client');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const multer = require("multer");
+const path = require("path");
+
 const app = express();
 const prisma = new PrismaClient();
+
 
 /**
  * Configuration et middlewares
@@ -16,16 +20,20 @@ app.use(cors({
 }));
 app.use(express.json());
 
-/**
- * Middlewares personnalisés
- */
-const validateUserCreation = (req, res, next) => {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
-  }
-  next();
-};
+// Configuration de multer avec extension de fichier
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (req, file, cb) => {
+    const extension = path.extname(file.originalname);
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({ storage });
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 /**
  * Routes pour les utilisateurs
@@ -75,8 +83,6 @@ app.post('/login', async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    console.log(user.firstName);
-
     const token = jwt.sign(
       {
         id: user.id,
@@ -106,8 +112,12 @@ app.get('/api/countries/:userId', async (req, res) => {
   try {
     const visits = await prisma.visit.findMany({
       where: { userId: parseInt(userId) },
-      include: { country: true },
+      include: {
+        country: true, 
+        photos: true,  
+      },
     });
+
     const data = visits.map((visit) => ({
       countryCode: visit.country.code,
       countryName: visit.country.name,
@@ -115,6 +125,10 @@ app.get('/api/countries/:userId', async (req, res) => {
       description: visit.description,
       color: visit.color,
       score: visit.score,
+      photos: visit.photos.map((photo) => ({
+        id: photo.id,
+        url: photo.url,
+      })), 
     }));
 
     res.json(data);
@@ -138,10 +152,10 @@ app.get("/me", (req, res) => {
   }
 });
 
-
-// Ajouter ou mettre à jour une visite
-app.post('/api/countries/update', async (req, res) => {
+// Ajouter ou mettre à jour une visite avec photos
+app.post('/api/countries/update', upload.array("photos"), async (req, res) => {
   const { userId, countryCode, countryName, state, description, color, score } = req.body;
+  const files = req.files; // Les fichiers photos envoyés via le formulaire
 
   try {
     // Vérifiez que 'state' est fourni
@@ -149,7 +163,6 @@ app.post('/api/countries/update', async (req, res) => {
       return res.status(400).json({ message: "Le champ 'state' est requis." });
     }
 
-    // Convertissez 'state' en 'status' pour correspondre au modèle Prisma
     const status = state;
 
     let country = await prisma.country.findUnique({ where: { code: countryCode } });
@@ -166,8 +179,22 @@ app.post('/api/countries/update', async (req, res) => {
           countryId: country.id,
         },
       });
+
+      // Supprimer les photos associées à la visite supprimée
+      await prisma.photo.deleteMany({
+        where: {
+          visit: {
+            userId: parseInt(userId),
+            countryId: country.id,
+          },
+        },
+      });
+
       return res.json({ message: "Visite supprimée avec succès" });
     }
+
+    // Convertir 'score' en Float avant de l'utiliser
+    const parsedScore = score ? parseFloat(score) : 0;
 
     const visit = await prisma.visit.upsert({
       where: {
@@ -176,9 +203,21 @@ app.post('/api/countries/update', async (req, res) => {
           countryId: country.id,
         },
       },
-      update: { status, description: description || "", color: color || "transparent", score: score || 0 },
-      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent", score: score || 0 },
+      update: { status, description: description || "", color: color || "transparent", score: parsedScore },
+      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent", score: parsedScore },
     });
+
+    // Ajouter les photos si des fichiers sont envoyés
+    if (files && files.length > 0) {
+      const photoEntries = files.map((file) => ({
+        url: `/uploads/${file.filename}`, // Stocke le chemin vers le fichier
+        visitId: visit.id,
+      }));
+
+      await prisma.photo.createMany({
+        data: photoEntries,
+      });
+    }
 
     res.json({ message: 'Visite mise à jour avec succès', visit });
   } catch (error) {
@@ -186,7 +225,6 @@ app.post('/api/countries/update', async (req, res) => {
     res.status(500).json({ error: 'Erreur lors de la mise à jour du pays', details: error.message });
   }
 });
-
 
 // Endpoint : Les pays les plus visités
 app.get('/api/most-visited', async (req, res) => {

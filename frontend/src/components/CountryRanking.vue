@@ -1,5 +1,6 @@
 <template>
   <div class="leaderboard-container">
+    <div class="background"></div>
     <h1 class="leaderboard-title">Classement des Pays</h1>
 
     <div class="tabs">
@@ -136,6 +137,7 @@ export default {
 
 /* Titre */
 .leaderboard-title {
+  position: relative;
   text-align: center;
   font-size: 28px;
   font-weight: bold;
@@ -145,6 +147,7 @@ export default {
 
 /* Onglets */
 .tabs {
+  position: relative;
   display: flex;
   justify-content: center;
   gap: 10px;
@@ -170,6 +173,7 @@ export default {
 
 /* Tableau */
 .leaderboard {
+  position: relative;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -220,7 +224,6 @@ export default {
 /* Conteneur principal avec image de fond */
 .leaderboard-container {
   padding: 20px;
-  background-image: url('../assets/carte.png'); /* Remplace par le chemin de ton image */
   background-size: cover; /* Assure que l'image couvre tout l'espace */
   background-position: center; /* Centre l'image */
   background-attachment: fixed; /* L'image reste fixe lors du défilement */
@@ -229,8 +232,22 @@ export default {
   color: #fff; /* Texte en blanc pour une bonne lisibilité */
 }
 
+/* Image de fond avec flou */
+.background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 90vh;
+  background: url("../assets/carte.png") no-repeat center center fixed;
+  background-size: cover;
+  filter: blur(8px); /* Ajustez la valeur pour plus ou moins de flou */
+  z-index: 0;
+}
+
 /* Ajout d'un fond semi-transparent pour améliorer la lisibilité */
 .leaderboard {
+  position: relative;
   background-color: rgba(255, 255, 255, 0.98); /* Fond blanc avec transparence */
   border-radius: 8px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
