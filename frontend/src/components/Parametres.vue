@@ -67,6 +67,7 @@
   
   
   <script>
+  import eventBus from '../eventBus';
 
   const handleResponse = async (response) => {
   if (!response.ok) {
@@ -98,7 +99,7 @@ export default {
   
   methods: {
     async updateAccount() {
-  const updates = {}; // Objet pour stocker les champs à mettre à jour
+  const updates = {}; 
 
   // Valider le nom d'utilisateur (email) s'il est renseigné
   if (this.account.username) {
@@ -108,7 +109,7 @@ export default {
       this.messageType = "error";
       return;
     }
-    updates.email = this.account.username; // Ajouter l'email à l'objet de mise à jour
+    updates.email = this.account.username; 
   }
 
   // Ajouter le prénom s'il est renseigné
@@ -159,6 +160,9 @@ export default {
 
     this.message = `${updatedFields.join(", ")} mis à jour avec succès !`;
     this.messageType = "success";
+
+    // Émettre un événement pour mettre à jour les informations de l'utilisateur
+    eventBus.$emit("user-updated", updates);
   } catch (error) {
     console.error(error);
     this.message = error.message || "Une erreur s'est produite.";

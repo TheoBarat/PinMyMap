@@ -71,6 +71,16 @@ export default {
         this.loadUser(); // Recharge les données utilisateur
       }
     });
+
+    // Écouter l'événement user-updated
+    eventBus.$on("user-updated", (updates) => {
+      if (updates.firstName) {
+        this.user.firstName = updates.firstName;
+      }
+      if (updates.lastName) {
+        this.user.lastName = updates.lastName;
+      }
+    });
   },
 
   methods: {
@@ -111,7 +121,7 @@ export default {
       this.user = { email: "" };
       this.showDropdown = false; // Assure que le menu est fermé après déconnexion
       this.$router.push("/login");
-      this.$root.$emit("auth-changed", false);
+      eventBus.$emit("auth-changed", false);
     },
     toggleDropdown() {
       this.showDropdown = !this.showDropdown;
