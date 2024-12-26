@@ -35,9 +35,110 @@ const upload = multer({ storage });
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-/**
- * Routes pour les utilisateurs
- */
+// Récupérer les informations de l'utilisateur connecté
+app.get('/api/account', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const decoded = jwt.verify(token, "your-secret-key");
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable." });
+    }
+
+    res.status(200).json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    });
+  } catch (error) {
+    console.error("Erreur lors de la récupération des informations utilisateur :", error);
+    res.status(500).json({ message: "Erreur serveur." });
+  }
+});
+
+// Mettre à jour les informations utilisateur
+app.put('/api/account', async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, "your-secret-key");
+    const userId = decoded.id;
+
+    const { email, password, firstName, lastName } = req.body;
+
+    // Préparer les mises à jour
+    const updates = {};
+    if (email) updates.email = email;
+    if (password) updates.password = bcrypt.hashSync(password, 8); // Hacher le mot de passe
+    if (firstName) updates.firstName = firstName.trim();
+    if (lastName) updates.lastName = lastName.trim();
+
+    console.log("Champs à mettre à jour :", updates); // Log pour vérifier les données reçues
+
+    // Vérifier qu'il y a au moins un champ à mettre à jour
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ message: "Aucun champ à mettre à jour." });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updates,
+    });
+
+    res.status(200).json({ message: "Mise à jour effectuée avec succès.", user: updatedUser });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour :", error);
+    res.status(500).json({ message: "Erreur serveur." });
+  }
+});
+
+
+
+// Supprimer le compte utilisateur
+app.delete('/api/account', async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, "your-secret-key");
+    const userId = decoded.id;
+
+    // Supprimez les données associées à l'utilisateur
+    await prisma.photo.deleteMany({
+      where: { visit: { userId } },
+    });
+    await prisma.visit.deleteMany({
+      where: { userId },
+    });
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    res.status(200).json({ message: "Compte supprimé avec succès." });
+  } catch (error) {
+    console.error("Erreur lors de la suppression :", error);
+    res.status(500).json({ message: "Erreur serveur." });
+  }
+});
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.url}`);
+  next();
+});
+
+
+
 
 // Récupérer tous les utilisateurs
 app.get('/users', async (req, res) => {

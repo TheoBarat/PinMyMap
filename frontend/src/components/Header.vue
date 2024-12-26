@@ -13,7 +13,7 @@
         </router-link>
       </div>
 
-      <!-- Leaderbord -->
+      <!-- Leaderboard -->
       <div class="leaderboard">
         <router-link to="/leaderboard" custom v-slot="{ navigate }">
           <span @click="navigate">Leaderboard 📊</span>
@@ -35,6 +35,9 @@
         <!-- Menu déroulant pour se déconnecter -->
         <div v-if="showDropdown" class="dropdown-menu">
           <button @click="logout">Se déconnecter</button>
+          <router-link to="/parametres" custom v-slot="{ navigate }">
+            <button @click="navigate">Paramètres de compte</button>
+          </router-link>
         </div>
       </div>
     </div>
@@ -46,32 +49,30 @@ import router from "@/router";
 import eventBus from "../eventBus";
 
 export default {
-  
   name: "Header",
   data() {
-  return {
-    isLoggedIn: false, // Indique si l'utilisateur est connecté
-    showDropdown: false, // Contrôle l'affichage du menu déroulant
-    user: {
-      firstName: "",
-      lastName: "",
-    },
-  };
-},
+    return {
+      isLoggedIn: false, // Indique si l'utilisateur est connecté
+      showDropdown: false, // Contrôle l'affichage du menu déroulant
+      user: {
+        firstName: "",
+        lastName: "",
+      },
+    };
+  },
 
   mounted() {
     this.checkAuth(); // Vérifie l'état de connexion
     eventBus.$on("auth-changed", (status) => {
-  console.log("Événement auth-changed capté : ", status);
-  this.isLoggedIn = status;
-  this.showDropdown = false; // Assure que le menu déroulant est fermé
-  if (status) {
-    this.loadUser(); // Recharge les données utilisateur
-  }
-});
-
+      console.log("Événement auth-changed capté : ", status);
+      this.isLoggedIn = status;
+      this.showDropdown = false; // Assure que le menu déroulant est fermé
+      if (status) {
+        this.loadUser(); // Recharge les données utilisateur
+      }
+    });
   },
-  
+
   methods: {
     checkAuth() {
       const token = localStorage.getItem("token");
