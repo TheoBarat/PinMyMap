@@ -447,13 +447,16 @@ app.get("/api/pays/:id/details", async (req, res) => {
     const visitedCount = country.visits.filter((v) => v.status === "visited").length;
     const wishlistCount = country.visits.filter((v) => v.status === "wishlist").length;
 
+    // Filtrer les scores pour exclure ceux égaux à zéro
+    const validScores = country.visits
+      .map((visit) => parseFloat(visit.score || 0)) // Convertir les scores en nombres (remplacer null par 0)
+      .filter((score) => score > 0); // Exclure les scores <= 0
+
     // Calcul de la note moyenne
-    const scores = country.visits.map((visit) => visit.score);
-    const averageRating =
-      scores.length > 0
-        ? scores.reduce((sum, score) => sum + score, 0) / scores.length
-        : 0;
-    
+    const averageRating = validScores.length > 0
+      ? validScores.reduce((sum, score) => sum + score, 0) / validScores.length
+      : 0; // Si aucun score valide, la moyenne est 0
+
     // Filtrer les visites avec des descriptions (utilisées comme commentaires)
     const comments = country.visits
       .filter((v) => v.description) // Garde uniquement les visites avec une description
