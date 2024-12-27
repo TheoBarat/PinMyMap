@@ -123,6 +123,8 @@ export default {
   width: 300px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
+  overflow: auto;
+  height: 70%;
 }
 
 .state {
