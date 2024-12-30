@@ -304,8 +304,8 @@ app.post('/api/countries/update', upload.array("photos"), async (req, res) => {
           countryId: country.id,
         },
       },
-      update: { status, description: description || "", color: color || "transparent", score: parsedScore },
-      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent", score: parsedScore },
+      update: { status, description: description || "", color: color || "transparent", score: isNaN(parsedScore) ? 0 : parsedScore },
+      create: { userId: parseInt(userId), countryId: country.id, status, description: description || "", color: color || "transparent", score: isNaN(parsedScore) ? 0 : parsedScore },
     });
 
     // Ajouter les photos si des fichiers sont envoyés

@@ -83,14 +83,20 @@ export default {
     };
   },
   methods: {
-    saveChanges() {
-      this.$emit("save", {
-        description: this.description,
-        state: this.state,
-        score: this.score,
-        photos: this.photos,
-      });
-    },
+  saveChanges() {
+    // Si l'état est "to_visit", réinitialiser score et photos
+    if (this.state === "to_visit") {
+      this.score = null;
+    }
+
+    // Émettre les données mises à jour
+    this.$emit("save", {
+      description: this.description,
+      state: this.state,
+      score: this.score,
+      photos: this.photos,
+    });
+  },
     updateScore(score) {
       this.score = score;
     },
